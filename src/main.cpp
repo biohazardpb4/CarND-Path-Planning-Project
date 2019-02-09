@@ -106,14 +106,18 @@ int main() {
 		if (x2 - x1 != 0) {
 		double m = (y2 - y1)/(x2 - x1);
 		for (int j = 0; j < 10; j++) {
-			double x = x1 + i*(x2 - x1)/10.0;
+			double x = x1 + j*(x2 - x1)/10.0;
 			double y = y1 + m*(x - x1);
 			next_x_vals.push_back(x);
 			next_y_vals.push_back(y);
 		}
 		} else {
-			next_x_vals.push_back(x1);
-			next_y_vals.push_back(y1);
+		for (int j = 0; j < 10; j++) {
+			double x = x1;
+			double y = y1 + j*(y2 - y1)/10.0;
+			next_x_vals.push_back(x);
+			next_y_vals.push_back(y);
+		}
 		}
 	  }
           }
