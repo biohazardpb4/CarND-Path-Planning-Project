@@ -97,28 +97,31 @@ int main() {
 
 	  if (!initialized) {
 		  initialized = true;
-		  next_x_vals = map_waypoints_x;
-		  next_y_vals = map_waypoints_y;
+		  //next_x_vals = map_waypoints_x;
+		  //next_y_vals = map_waypoints_y;
+		  // Interpolate some points between here and the next waypoint.
+	  for (int i = 1; i < map_waypoints_x.size(); i++) {
+                double y1 = map_waypoints_y[i-1], y2 = map_waypoints_y[i],
+		       x1 = map_waypoints_x[i-1], x2 = map_waypoints_x[i];
+		if (x2 - x1 != 0) {
+		double m = (y2 - y1)/(x2 - x1);
+		for (int j = 0; j < 10; j++) {
+			double x = x1 + i*(x2 - x1)/10.0;
+			double y = y1 + m*(x - x1);
+			next_x_vals.push_back(x);
+			next_y_vals.push_back(y);
+		}
+		} else {
+			next_x_vals.push_back(x1);
+			next_y_vals.push_back(y1);
+		}
+	  }
           }
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-	  /*/ Interpolate some points between here and the next waypoint.
-	  double prev_x = map_waypoints_x[0], prev_y = map_waypoints_y[0];
-	  for (int i = 1; i < map_waypoints_x.size(); i++) {
-                double y1 = prev_y, y2 = map_waypoints_y[i], x1 = prev_x, x2 = map_waypoints_x[i];
-		double m = (y2 - y1)/(x2 - x1);
-		for (int j = 0; j < 500; j++) {
-			double x = x1 + (x2 - x1)/500.0;
-			double y = m * (x - x1) + y1;
-			next_x_vals.push_back(x);
-			next_y_vals.push_back(y);
-		}
-	  }
-	  */
-
-
+	  
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
@@ -134,8 +137,9 @@ int main() {
     }  // end websocket if
   }); // end h.onMessage
 
-  h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
+  h.onConnection([&h, &initialized](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
+    initialized = false;
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
