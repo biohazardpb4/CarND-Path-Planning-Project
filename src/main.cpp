@@ -52,10 +52,17 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+  Vehicle ego(1, 0, 50, 0, "KL");
+  ego.target_speed = 50;
+  ego.lanes_available = 3;
+  ego.goal_s = max_s;
+  ego.goal_lane = 1;
+  ego.max_acceleration = 10;
+
   bool initialized = false;
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy,&initialized]
+               &map_waypoints_dx,&map_waypoints_dy,&initialized, &ego]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -81,6 +88,13 @@ int main() {
           double car_yaw = j[1]["yaw"];
           double car_speed = j[1]["speed"];
 
+	  int lane = car_d/4;
+	  float acceleration = 0; // TODO: fill this in
+	  ego.lane = lane;
+	  ego.s = car_s;
+	  ego.v = car_speed;
+	  ego.a = acceleration;
+
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
           auto previous_path_y = j[1]["previous_path_y"];
@@ -92,11 +106,44 @@ int main() {
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
-          json msgJson;
+	  // TODO: create a vehicle for each vehicle in sensor_fusion
+	  map<int, vector<Vehicle>> predictions;
+	  for (auto& sensed_vehicle : sensor_fusion) {
+	    // format is [car ID, x(map), y(map), vx (m/s), vy (m/s), s, d]
+	    int id = sensed_vehicle[0];
+	    double vx = sensed_vehicle[3];
+	    double vy = sensed_vehicle[4];
+	    double v = distance(0, 0, vx, vy);
+	    double a = 0; // TODO: fill in
+	    double s = sensed_vehicle[5];
+	    double d = sensed_vehicle[6];
+	    Vehicle vehicle(int(d/4), s, v, a);
+	    predictions[id] = vehicle.generate_predictions(); 
+	  }
+	  // generate trajectory
+	  vector<Vehicle> trajectory = ego.choose_next_state(predictions);
+	  ego.realize_next_state(trajectory);
+	  // TODO: generate 50 trajectory points and store into next_x_vals and next_y_vals
+	  vector<double> next_x_vals;
+          vector<double> next_y_vals;
+// TODO: this is just a hack to only generate trajectories once for debugging. remove later
+if(!initialized) {
+	initialized = true;
 
-          vector<double> next_x_vals = previous_path_x;
-          vector<double> next_y_vals = previous_path_y;
+	  for (int i = 0; i < 50; i++) {
+            double next_s = ego.position_at(i);
+	    double next_d = ego.lane *4 - 2;
+	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+	    next_x_vals.push_back(xy[0]);
+	    next_y_vals.push_back(xy[1]); 
+          }
+}
 
+          /**
+           * TODO: define a path made up of (x,y) points that the car will visit
+           *   sequentially every .02 seconds
+           */
+	  /*
 	  if (!initialized) {
 		  initialized = true;
 		  //next_x_vals = map_waypoints_x;
@@ -128,12 +175,9 @@ int main() {
 		}
 		}
 	  }
-          }
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
+          }*/
 	  
+          json msgJson;
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
