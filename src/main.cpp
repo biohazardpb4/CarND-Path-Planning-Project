@@ -7,6 +7,8 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
+#include "vehicle.h"
+#include "cost.h"
 
 // for convenience
 using nlohmann::json;
@@ -103,6 +105,12 @@ int main() {
 	  for (int i = 1; i < map_waypoints_x.size(); i++) {
                 double y1 = map_waypoints_y[i-1], y2 = map_waypoints_y[i],
 		       x1 = map_waypoints_x[i-1], x2 = map_waypoints_x[i];
+		// shift to first lane
+		x1 += map_waypoints_dx[i-1]*2;
+		x2 += map_waypoints_dx[i]*2;
+		y1 += map_waypoints_dy[i-1]*2;
+		y2 += map_waypoints_dy[i]*2;
+
 		if (x2 - x1 != 0) {
 		double m = (y2 - y1)/(x2 - x1);
 		for (int j = 0; j < 10; j++) {
