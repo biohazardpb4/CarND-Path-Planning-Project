@@ -53,7 +53,7 @@ int main() {
   }
 
   Vehicle ego(1, 0, 50, 0, "KL");
-  ego.target_speed = 50;
+  ego.target_speed = mph2mps(50);
   ego.lanes_available = 3;
   ego.goal_s = max_s;
   ego.goal_lane = 1;
@@ -86,7 +86,7 @@ int main() {
           double car_s = j[1]["s"];
           double car_d = j[1]["d"];
           double car_yaw = j[1]["yaw"];
-          double car_speed = j[1]["speed"];
+          double car_speed = mph2mps(j[1]["speed"]);
 
 	  int lane = car_d/4;
 	  float acceleration = 0; // TODO: fill this in
@@ -131,7 +131,8 @@ if(!initialized) {
 	initialized = true;
 
 	  for (int i = 0; i < 50; i++) {
-            double next_s = ego.position_at(i);
+            // one trajectory point is generated for every 0.02 second
+            double next_s = ego.position_at(i*0.02);
 	    double next_d = ego.lane *4 - 2;
 	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 	    next_x_vals.push_back(xy[0]);

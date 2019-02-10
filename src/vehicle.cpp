@@ -224,11 +224,11 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string state,
   return trajectory;
 }
 
-void Vehicle::increment(int dt = 1) {
+void Vehicle::increment(double dt = 1) {
   this->s = position_at(dt);
 }
 
-float Vehicle::position_at(int t) {
+double Vehicle::position_at(double t) {
   return this->s + this->v*t + this->a*t*t/2.0;
 }
 

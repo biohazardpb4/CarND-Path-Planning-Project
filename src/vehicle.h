@@ -38,9 +38,9 @@ class Vehicle {
   vector<Vehicle> prep_lane_change_trajectory(string state, 
                                               map<int, vector<Vehicle>> &predictions);
 
-  void increment(int dt);
+  void increment(double dt);
 
-  float position_at(int t);
+  double position_at(double t);
 
   bool get_vehicle_behind(map<int, vector<Vehicle>> &predictions, int lane, 
                           Vehicle &rVehicle);
