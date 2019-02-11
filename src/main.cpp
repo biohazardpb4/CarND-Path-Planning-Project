@@ -116,15 +116,17 @@ int main() {
 	    Vehicle vehicle(int(d/4), s, v, a);
 	    predictions[id] = vehicle.generate_predictions(dt*2, dt); 
 	  }
+	  // TODO: generate 50 trajectory points and store into next_x_vals and next_y_vals
+	  vector<double> next_x_vals;
+          vector<double> next_y_vals;
+	  
+	  // TODO: this is just a hack to only generate trajectories once for debugging. remove later
+//if(num_gens++ < 3) {
+          //std::cout << "car_speed (reported): " << car_speed << std::endl;
 	  // generate trajectory
 	  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
 	  ego.realize_next_state(trajectory);
 	  prev_state = ego.state;
-	  // TODO: generate 50 trajectory points and store into next_x_vals and next_y_vals
-	  vector<double> next_x_vals;
-          vector<double> next_y_vals;
-// TODO: this is just a hack to only generate trajectories once for debugging. remove later
-if(num_gens++ < 3) {
 
 	  for (int i = 0; i < 50; i++) {
             // one trajectory point is generated for every 0.02 second
@@ -136,7 +138,7 @@ if(num_gens++ < 3) {
           }
 	  std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a
 		  << ", state: " << ego.state << std::endl;
-}
+//}
 
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
