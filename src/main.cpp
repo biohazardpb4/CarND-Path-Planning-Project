@@ -24,6 +24,7 @@ int main() {
   vector<double> map_waypoints_s;
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
+  string prev_state = "KL";
 
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
@@ -52,17 +53,10 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  Vehicle ego(1, 0, 50, 0, "KL");
-  ego.target_speed = mph2mps(50);
-  ego.lanes_available = 3;
-  ego.goal_s = max_s;
-  ego.goal_lane = 1;
-  ego.max_acceleration = 10;
+    int num_gens = 0;
 
-  bool initialized = false;
-
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy,&initialized, &ego]
+  h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
+               &map_waypoints_dx, &map_waypoints_dy, &num_gens, &prev_state, &max_s]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -90,10 +84,12 @@ int main() {
 
 	  int lane = car_d/4;
 	  float acceleration = 0; // TODO: fill this in
-	  ego.lane = lane;
-	  ego.s = car_s;
-	  ego.v = car_speed;
-	  ego.a = acceleration;
+	  Vehicle ego(lane, car_s, car_speed, acceleration, prev_state);
+  	  ego.target_speed = mph2mps(50);
+  	  ego.lanes_available = 3;
+  	  ego.goal_s = max_s;
+  	  ego.goal_lane = 0;
+  	  ego.max_acceleration = 10;
 
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
@@ -105,7 +101,7 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
-
+	  double dt = 0.02;
 	  // TODO: create a vehicle for each vehicle in sensor_fusion
 	  map<int, vector<Vehicle>> predictions;
 	  for (auto& sensed_vehicle : sensor_fusion) {
@@ -118,26 +114,28 @@ int main() {
 	    double s = sensed_vehicle[5];
 	    double d = sensed_vehicle[6];
 	    Vehicle vehicle(int(d/4), s, v, a);
-	    predictions[id] = vehicle.generate_predictions(); 
+	    predictions[id] = vehicle.generate_predictions(dt*2, dt); 
 	  }
 	  // generate trajectory
-	  vector<Vehicle> trajectory = ego.choose_next_state(predictions);
+	  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
 	  ego.realize_next_state(trajectory);
+	  prev_state = ego.state;
 	  // TODO: generate 50 trajectory points and store into next_x_vals and next_y_vals
 	  vector<double> next_x_vals;
           vector<double> next_y_vals;
 // TODO: this is just a hack to only generate trajectories once for debugging. remove later
-if(!initialized) {
-	initialized = true;
+if(num_gens++ < 3) {
 
 	  for (int i = 0; i < 50; i++) {
             // one trajectory point is generated for every 0.02 second
             double next_s = ego.position_at(i*0.02);
-	    double next_d = ego.lane *4 - 2;
+	    double next_d = (ego.lane+1)*4 - 2; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
 	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 	    next_x_vals.push_back(xy[0]);
 	    next_y_vals.push_back(xy[1]); 
           }
+	  std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a
+		  << ", state: " << ego.state << std::endl;
 }
 
           /**
@@ -145,8 +143,8 @@ if(!initialized) {
            *   sequentially every .02 seconds
            */
 	  /*
-	  if (!initialized) {
-		  initialized = true;
+	  if (!num_gens) {
+		  num_gens = true;
 		  //next_x_vals = map_waypoints_x;
 		  //next_y_vals = map_waypoints_y;
 		  // Interpolate some points between here and the next waypoint.
@@ -194,9 +192,9 @@ if(!initialized) {
     }  // end websocket if
   }); // end h.onMessage
 
-  h.onConnection([&h, &initialized](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
+  h.onConnection([&h, &num_gens](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
-    initialized = false;
+    num_gens = 0;
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,

@@ -19,24 +19,25 @@ class Vehicle {
   virtual ~Vehicle();
 
   // Vehicle functions
-  vector<Vehicle> choose_next_state(map<int, vector<Vehicle>> &predictions);
+  vector<Vehicle> choose_next_state(map<int, vector<Vehicle>> &predictions, double dt);
 
   vector<string> successor_states();
 
   vector<Vehicle> generate_trajectory(string state, 
-                                      map<int, vector<Vehicle>> &predictions);
+                                      map<int, vector<Vehicle>> &predictions, double dt);
 
-  vector<float> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane);
+  vector<float> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane, double dt);
 
-  vector<Vehicle> constant_speed_trajectory();
+  vector<Vehicle> constant_speed_trajectory(double dt);
 
-  vector<Vehicle> keep_lane_trajectory(map<int, vector<Vehicle>> &predictions);
+  vector<Vehicle> keep_lane_trajectory(map<int, vector<Vehicle>> &predictions, double dt);
 
   vector<Vehicle> lane_change_trajectory(string state, 
-                                         map<int, vector<Vehicle>> &predictions);
+                                         map<int, vector<Vehicle>> &predictions, double dt);
 
   vector<Vehicle> prep_lane_change_trajectory(string state, 
-                                              map<int, vector<Vehicle>> &predictions);
+                                              map<int, vector<Vehicle>> &predictions,
+					      double dt);
 
   void increment(double dt);
 
@@ -48,7 +49,7 @@ class Vehicle {
   bool get_vehicle_ahead(map<int, vector<Vehicle>> &predictions, int lane, 
                          Vehicle &rVehicle);
 
-  vector<Vehicle> generate_predictions(int horizon=2);
+  vector<Vehicle> generate_predictions(double horizon, double dt);
 
   void realize_next_state(vector<Vehicle> &trajectory);
 
