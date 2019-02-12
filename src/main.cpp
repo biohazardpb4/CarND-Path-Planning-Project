@@ -103,7 +103,7 @@ int main() {
           auto sensor_fusion = j[1]["sensor_fusion"];
 	  double dt = 0.02;
 	  // TODO: create a vehicle for each vehicle in sensor_fusion
-	  map<int, vector<Vehicle>> predictions;
+	  map<int, Vehicle> vehicles;
 	  for (auto& sensed_vehicle : sensor_fusion) {
 	    // format is [car ID, x(map), y(map), vx (m/s), vy (m/s), s, d]
 	    int id = sensed_vehicle[0];
@@ -114,7 +114,7 @@ int main() {
 	    double s = sensed_vehicle[5];
 	    double d = sensed_vehicle[6];
 	    Vehicle vehicle(int(d/4), s, v, a);
-	    predictions[id] = vehicle.generate_predictions(dt*2, dt); 
+	    vehicles[id] = vehicle; 
 	  }
 	  // TODO: generate 50 trajectory points and store into next_x_vals and next_y_vals
 	  vector<double> next_x_vals;
@@ -124,11 +124,18 @@ int main() {
 //if(num_gens++ < 3) {
           //std::cout << "car_speed (reported): " << car_speed << std::endl;
 	  // generate trajectory
-	  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
-	  ego.realize_next_state(trajectory);
-	  prev_state = ego.state;
-
+	  map<int, vector<Vehicle>> predictions;
 	  for (int i = 0; i < 50; i++) {
+		  for (auto& kv : vehicles) {
+			predictions[kv.first] = kv.second.generate_predictions(dt*2, dt);
+		  }
+		  for (auto& kv : vehicles) {
+			  kv.second.increment(dt);
+		  }
+		  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
+		  ego.realize_next_state(trajectory);
+		  prev_state = ego.state;
+
             // one trajectory point is generated for every 0.02 second
             double next_s = ego.position_at(i*0.02);
 	    double next_d = (ego.lane+1)*4 - 2; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
