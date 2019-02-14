@@ -113,7 +113,7 @@ vector<Vehicle> Vehicle::generate_trajectory(string state,
 }
 
 vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions, 
-                                      int lane, double dt) {
+                                      int lane, double dt, bool debug) {
   // Gets next timestep kinematics (position, velocity, acceleration) 
   //   for a given lane. Tries to choose the maximum velocity and acceleration, 
   //   given other vehicle positions and accel/velocity constraints.
@@ -124,22 +124,22 @@ vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
   Vehicle vehicle_ahead;
   Vehicle vehicle_behind;
   if (get_vehicle_ahead(predictions, lane, vehicle_ahead)) {
-    if (get_vehicle_behind(predictions, lane, vehicle_behind)) {
+    /*if (get_vehicle_behind(predictions, lane, vehicle_behind)) {
       // must travel at the speed of traffic, regardless of preferred buffer
       new_velocity = std::min(std::min(vehicle_ahead.v, max_velocity_accel_limit), this->target_speed);
-      //std::cout << "vehicle ahead and behind. new velocity: " << new_velocity << std::endl;
-    } else {
+      if(debug) std::cout << "vehicle ahead and behind. new velocity: " << new_velocity << std::endl;
+    } else {*/
       float max_velocity_in_front = (vehicle_ahead.s - this->s 
                                   - this->preferred_buffer) + vehicle_ahead.v 
                                   - 0.5 * (this->a);
       new_velocity = std::min(std::min(max_velocity_in_front, 
                                        max_velocity_accel_limit), 
                                        this->target_speed);
-      //std::cout << "vehicle ahead. new velocity: " << new_velocity << std::endl;
-    }
+      if(debug) std::cout << "vehicle ahead. new velocity: " << new_velocity << std::endl;
+    //}
   } else {
     new_velocity = std::min(max_velocity_accel_limit, this->target_speed);
-      //std::cout << "clear path. new velocity: " << new_velocity << std::endl;
+      if(debug) std::cout << "clear path. new velocity: " << new_velocity << std::endl;
   }
   new_accel = (new_velocity - this->v)/dt; // Equation: (v_1 - v_0)/t = acceleration
   new_accel = std::max(new_accel, -this->max_acceleration); // cap the acceleration on the low end
@@ -158,7 +158,7 @@ vector<Vehicle> Vehicle::constant_speed_trajectory(double dt) {
 vector<Vehicle> Vehicle::keep_lane_trajectory(map<int, vector<Vehicle>> &predictions, double dt) {
   // Generate a keep lane trajectory.
   vector<Vehicle> trajectory = {Vehicle(lane, this->s, this->v, this->a, state)};
-  vector<float> kinematics = get_kinematics(predictions, this->lane, dt);
+  vector<float> kinematics = get_kinematics(predictions, this->lane, dt, true);
   float new_s = kinematics[0];
   float new_v = kinematics[1];
   float new_a = kinematics[2];

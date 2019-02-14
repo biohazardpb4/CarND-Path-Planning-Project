@@ -24,7 +24,7 @@ int main() {
   vector<double> map_waypoints_s;
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
-  string prev_state = "KL";
+  Vehicle ego(0, 0, 0, 0, "KL");
 
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
@@ -56,7 +56,7 @@ int main() {
     int num_gens = 0;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx, &map_waypoints_dy, &num_gens, &prev_state, &max_s]
+               &map_waypoints_dx, &map_waypoints_dy, &num_gens, &ego, &max_s]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -80,11 +80,15 @@ int main() {
           double car_s = j[1]["s"];
           double car_d = j[1]["d"];
           double car_yaw = j[1]["yaw"];
-          double car_speed = mph2mps(j[1]["speed"]);
+          // double car_speed = mph2mps(j[1]["speed"]);
+	  // double car_speed = mph2mps(50); // DELETE THIS!
+	  // double car_speed = prev_speed;
 
 	  int lane = car_d/4;
 	  float acceleration = 0; // TODO: fill this in
-	  Vehicle ego(lane, car_s, car_speed, acceleration, prev_state);
+	  // not set - lane, v, state
+	  ego.s = car_s;
+	  ego.a = acceleration;
   	  ego.target_speed = mph2mps(50);
   	  ego.lanes_available = 3;
   	  ego.goal_s = max_s;
@@ -102,7 +106,6 @@ int main() {
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 	  double dt = 0.02;
-	  // TODO: create a vehicle for each vehicle in sensor_fusion
 	  map<int, Vehicle> vehicles;
 	  for (auto& sensed_vehicle : sensor_fusion) {
 	    // format is [car ID, x(map), y(map), vx (m/s), vy (m/s), s, d]
@@ -116,7 +119,6 @@ int main() {
 	    Vehicle vehicle(int(d/4), s, v, a);
 	    vehicles[id] = vehicle; 
 	  }
-	  // TODO: generate 50 trajectory points and store into next_x_vals and next_y_vals
 	  vector<double> next_x_vals;
           vector<double> next_y_vals;
 	  
@@ -132,12 +134,14 @@ int main() {
 		  for (auto& kv : vehicles) {
 			  kv.second.increment(dt);
 		  }
+		  // ego.state = "KL"; // DELETE THIS!
+		  // vector<Vehicle> trajectory{ego.generate_trajectory(ego.state, predictions, dt)}; // REVERT this!
 		  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
-		  ego.realize_next_state(trajectory);
-		  prev_state = ego.state;
+		ego.realize_next_state(trajectory);
+  		  ego.increment(i*0.02);
 
             // one trajectory point is generated for every 0.02 second
-            double next_s = ego.position_at(i*0.02);
+            double next_s = ego.s;
 	    double next_d = (ego.lane+1)*4 - 2; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
 	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 	    next_x_vals.push_back(xy[0]);
@@ -146,12 +150,7 @@ int main() {
 	  std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a
 		  << ", state: " << ego.state << std::endl;
 //}
-
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
-	  /*
+/*
 	  if (!num_gens) {
 		  num_gens = true;
 		  //next_x_vals = map_waypoints_x;

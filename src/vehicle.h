@@ -26,7 +26,7 @@ class Vehicle {
   vector<Vehicle> generate_trajectory(string state, 
                                       map<int, vector<Vehicle>> &predictions, double dt);
 
-  vector<float> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane, double dt);
+  vector<float> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane, double dt, bool debug=false);
 
   vector<Vehicle> constant_speed_trajectory(double dt);
 
