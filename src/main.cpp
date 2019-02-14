@@ -24,12 +24,18 @@ int main() {
   vector<double> map_waypoints_s;
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
-  Vehicle ego(0, 0, 0, 0, "KL");
-
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
+  Vehicle ego(0, 0, 0, 0, "KL");
+  	  ego.target_speed = mph2mps(50);
+  	  ego.lanes_available = 3;
+  	  ego.goal_s = max_s;
+  	  ego.goal_lane = 0;
+  	  ego.max_acceleration = 10;
+  vector<Vehicle> ego_history{ego};
+
 
   std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
 
@@ -56,7 +62,7 @@ int main() {
     int num_gens = 0;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx, &map_waypoints_dy, &num_gens, &ego, &max_s]
+               &map_waypoints_dx, &map_waypoints_dy, &num_gens, &ego, &max_s, &ego_history]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -72,9 +78,13 @@ int main() {
         string event = j[0].get<string>();
         
         if (event == "telemetry") {
-          // j[1] is the data JSON object
-          
-          // Main car's localization Data
+          auto previous_path_x = j[1]["previous_path_x"];
+          auto previous_path_y = j[1]["previous_path_y"];
+          // Previous path's end s and d values 
+          double end_path_s = j[1]["end_path_s"];
+          double end_path_d = j[1]["end_path_d"];
+
+          // ego's localization Data
           double car_x = j[1]["x"];
           double car_y = j[1]["y"];
           double car_s = j[1]["s"];
@@ -83,24 +93,19 @@ int main() {
           // double car_speed = mph2mps(j[1]["speed"]);
 	  // double car_speed = mph2mps(50); // DELETE THIS!
 	  // double car_speed = prev_speed;
-
+          // rewind state to the first unprocessed state
+          const int first_unprocessed_i = ego_history.size() - previous_path_x.size();
+	  if (first_unprocessed_i > 0 && first_unprocessed_i < ego_history.size()) {
+	    ego = ego_history[ego_history.size() - previous_path_x.size()];
+	    ego_history.clear();
+	  }
+	  /*
 	  int lane = car_d/4;
 	  float acceleration = 0; // TODO: fill this in
 	  // not set - lane, v, state
 	  ego.s = car_s;
 	  ego.a = acceleration;
-  	  ego.target_speed = mph2mps(50);
-  	  ego.lanes_available = 3;
-  	  ego.goal_s = max_s;
-  	  ego.goal_lane = 0;
-  	  ego.max_acceleration = 10;
-
-          // Previous path data given to the Planner
-          auto previous_path_x = j[1]["previous_path_x"];
-          auto previous_path_y = j[1]["previous_path_y"];
-          // Previous path's end s and d values 
-          double end_path_s = j[1]["end_path_s"];
-          double end_path_d = j[1]["end_path_d"];
+	  */
 
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
@@ -139,6 +144,7 @@ int main() {
 		  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
 		ego.realize_next_state(trajectory);
   		  ego.increment(i*0.02);
+		  ego_history.push_back(ego);
 
             // one trajectory point is generated for every 0.02 second
             double next_s = ego.s;
@@ -200,9 +206,10 @@ int main() {
     }  // end websocket if
   }); // end h.onMessage
 
-  h.onConnection([&h, &num_gens](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
+  h.onConnection([&h, &num_gens, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
     num_gens = 0;
+    ego_history.clear();
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
