@@ -59,10 +59,8 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-    int num_gens = 0;
-
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx, &map_waypoints_dy, &num_gens, &ego, &max_s, &ego_history]
+               &map_waypoints_dx, &map_waypoints_dy, &ego, &max_s, &ego_history]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -99,13 +97,8 @@ int main() {
 	    ego = ego_history[ego_history.size() - previous_path_x.size()];
 	    ego_history.clear();
 	  }
-	  /*
-	  int lane = car_d/4;
-	  float acceleration = 0; // TODO: fill this in
-	  // not set - lane, v, state
-	  ego.s = car_s;
-	  ego.a = acceleration;
-	  */
+	  // TODO: update car state with localization data
+	  // int lane = car_d/4;
 
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
@@ -127,9 +120,6 @@ int main() {
 	  vector<double> next_x_vals;
           vector<double> next_y_vals;
 	  
-	  // TODO: this is just a hack to only generate trajectories once for debugging. remove later
-//if(num_gens++ < 3) {
-          //std::cout << "car_speed (reported): " << car_speed << std::endl;
 	  // generate trajectory
 	  map<int, vector<Vehicle>> predictions;
 	  for (int i = 0; i < 50; i++) {
@@ -139,11 +129,10 @@ int main() {
 		  for (auto& kv : vehicles) {
 			  kv.second.increment(dt);
 		  }
-		  // ego.state = "KL"; // DELETE THIS!
-		  // vector<Vehicle> trajectory{ego.generate_trajectory(ego.state, predictions, dt)}; // REVERT this!
+		  //ego.state = "KL"; // DELETE THIS!
+		  //vector<Vehicle> trajectory{ego.generate_trajectory(ego.state, predictions, dt)}; // REVERT this!
 		  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
 		ego.realize_next_state(trajectory);
-  		  ego.increment(i*0.02);
 		  ego_history.push_back(ego);
 
             // one trajectory point is generated for every 0.02 second
@@ -155,40 +144,6 @@ int main() {
           }
 	  std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a
 		  << ", state: " << ego.state << std::endl;
-//}
-/*
-	  if (!num_gens) {
-		  num_gens = true;
-		  //next_x_vals = map_waypoints_x;
-		  //next_y_vals = map_waypoints_y;
-		  // Interpolate some points between here and the next waypoint.
-	  for (int i = 1; i < map_waypoints_x.size(); i++) {
-                double y1 = map_waypoints_y[i-1], y2 = map_waypoints_y[i],
-		       x1 = map_waypoints_x[i-1], x2 = map_waypoints_x[i];
-		// shift to first lane
-		x1 += map_waypoints_dx[i-1]*2;
-		x2 += map_waypoints_dx[i]*2;
-		y1 += map_waypoints_dy[i-1]*2;
-		y2 += map_waypoints_dy[i]*2;
-
-		if (x2 - x1 != 0) {
-		double m = (y2 - y1)/(x2 - x1);
-		for (int j = 0; j < 10; j++) {
-			double x = x1 + j*(x2 - x1)/10.0;
-			double y = y1 + m*(x - x1);
-			next_x_vals.push_back(x);
-			next_y_vals.push_back(y);
-		}
-		} else {
-		for (int j = 0; j < 10; j++) {
-			double x = x1;
-			double y = y1 + j*(y2 - y1)/10.0;
-			next_x_vals.push_back(x);
-			next_y_vals.push_back(y);
-		}
-		}
-	  }
-          }*/
 	  
           json msgJson;
           msgJson["next_x"] = next_x_vals;
@@ -206,9 +161,11 @@ int main() {
     }  // end websocket if
   }); // end h.onMessage
 
-  h.onConnection([&h, &num_gens, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
+  h.onConnection([&h, &ego, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
-    num_gens = 0;
+    ego.s = 0;
+    ego.v = 0;
+    ego.a = 0;
     ego_history.clear();
   });
 

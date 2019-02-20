@@ -141,9 +141,13 @@ vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
     new_velocity = std::min(max_velocity_accel_limit, this->target_speed);
       if(debug) std::cout << "clear path. new velocity: " << new_velocity << std::endl;
   }
+  new_velocity = std::max(new_velocity, 0.0f);
   new_accel = (new_velocity - this->v)/dt; // Equation: (v_1 - v_0)/t = acceleration
   new_accel = std::max(new_accel, -this->max_acceleration); // cap the acceleration on the low end
-  new_position = this->s + new_velocity + new_accel / 2.0;
+  new_position = this->s + 0.5*(this->v + new_velocity)*dt; // d' = d + (vi + vf) / 2 * t
+  //new_position = std::min(new_position, 0.5f); // HACK
+  //if(debug) std::cout << "old s: " << this->s << ", v: " << this->v << ", a: " << this->a << std::endl;
+  //if(debug) std::cout << "new s: " << new_position << ", v: " << new_velocity << ", a: " <<new_accel << std::endl;
   return{new_position, new_velocity, new_accel};
 }
 
@@ -162,6 +166,7 @@ vector<Vehicle> Vehicle::keep_lane_trajectory(map<int, vector<Vehicle>> &predict
   float new_s = kinematics[0];
   float new_v = kinematics[1];
   float new_a = kinematics[2];
+  //std::cout << "keep lane s: " << new_s << ", v: " << new_v << ", a: " << new_a << std::endl;
   trajectory.push_back(Vehicle(this->lane, new_s, new_v, new_a, "KL"));
   
   return trajectory;
@@ -306,6 +311,7 @@ void Vehicle::realize_next_state(vector<Vehicle> &trajectory) {
   this->s = next_state.s;
   this->v = next_state.v;
   this->a = next_state.a;
+  //std::cout << "realizing new state -- s: " << this->s << ", v: " << this->v << ", a: " << this->a << std::endl;
 }
 
 void Vehicle::configure(vector<int> &road_data) {
