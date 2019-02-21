@@ -126,14 +126,10 @@ int main() {
 		  for (auto& kv : vehicles) {
 			predictions[kv.first] = kv.second.generate_predictions(dt*2, dt);
 		  }
-		  for (auto& kv : vehicles) {
-			  kv.second.increment(dt);
-		  }
-		  //ego.state = "KL"; // DELETE THIS!
-		  //vector<Vehicle> trajectory{ego.generate_trajectory(ego.state, predictions, dt)}; // REVERT this!
 		  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
 		ego.realize_next_state(trajectory);
 		  ego_history.push_back(ego);
+	   std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a << ", state: " << ego.state << std::endl;
 
             // one trajectory point is generated for every 0.02 second
             double next_s = ego.s;
@@ -142,8 +138,6 @@ int main() {
 	    next_x_vals.push_back(xy[0]);
 	    next_y_vals.push_back(xy[1]); 
           }
-	  std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a
-		  << ", state: " << ego.state << std::endl;
 	  
           json msgJson;
           msgJson["next_x"] = next_x_vals;

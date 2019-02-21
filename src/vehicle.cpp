@@ -35,18 +35,7 @@ vector<Vehicle> Vehicle::choose_next_state(map<int, vector<Vehicle>> &prediction
    *   in the future.
    * @output The best (lowest cost) trajectory corresponding to the next ego 
    *   vehicle state.
-   *
-   * Functions that will be useful:
-   * 1. successor_states - Uses the current state to return a vector of possible
-   *    successor states for the finite state machine.
-   * 2. generate_trajectory - Returns a vector of Vehicle objects representing 
-   *    a vehicle trajectory, given a state and predictions. Note that 
-   *    trajectory vectors might have size 0 if no possible trajectory exists 
-   *    for the state. 
-   * 3. calculate_cost - Included from cost.cpp, computes the cost for a trajectory.
-   *
-   * TODO: Your solution here.
-   */
+   */ 
    bool min_cost_init = false;
    float min_cost = 0;
    vector<Vehicle> min_trajectory;
@@ -54,6 +43,7 @@ vector<Vehicle> Vehicle::choose_next_state(map<int, vector<Vehicle>> &prediction
    for (auto const& next : this->successor_states()) {
        auto const& potential_trajectory = generate_trajectory(next, predictions, dt);
        auto const& potential_cost = calculate_cost(*this, predictions, potential_trajectory);
+       std::cout << "state: " << next << ", cost: " << potential_cost << std::endl;
        if (!min_cost_init || potential_cost < min_cost) {
            min_cost_init = true;
            min_cost = potential_cost;
@@ -68,28 +58,14 @@ vector<Vehicle> Vehicle::choose_next_state(map<int, vector<Vehicle>> &prediction
 }
 
 vector<string> Vehicle::successor_states() {
-  // Provides the possible next states given the current state for the FSM 
-  //   discussed in the course, with the exception that lane changes happen 
-  //   instantaneously, so LCL and LCR can only transition back to KL.
   vector<string> states;
   states.push_back("KL");
-  string state = this->state;
-  if(state.compare("KL") == 0) {
-    states.push_back("PLCL");
-    states.push_back("PLCR");
-  } else if (state.compare("PLCL") == 0) {
-    if (lane != lanes_available - 1) {
-      states.push_back("PLCL");
-      states.push_back("LCL");
-    }
-  } else if (state.compare("PLCR") == 0) {
-    if (lane != 0) {
-      states.push_back("PLCR");
-      states.push_back("LCR");
-    }
+  if (lane > 0) {
+	  states.push_back("LCL");
   }
-    
-  // If state is "LCL" or "LCR", then just return "KL"
+  if (lane < lanes_available - 1) {
+	  states.push_back("LCR");
+  }
   return states;
 }
 
@@ -105,10 +81,7 @@ vector<Vehicle> Vehicle::generate_trajectory(string state,
     trajectory = keep_lane_trajectory(predictions, dt);
   } else if (state.compare("LCL") == 0 || state.compare("LCR") == 0) {
     trajectory = lane_change_trajectory(state, predictions, dt);
-  } else if (state.compare("PLCL") == 0 || state.compare("PLCR") == 0) {
-    trajectory = prep_lane_change_trajectory(state, predictions, dt);
   }
-
   return trajectory;
 }
 
@@ -218,14 +191,14 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string state,
   Vehicle next_lane_vehicle;
   // Check if a lane change is possible (check if another vehicle occupies 
   //   that spot).
-  for (map<int, vector<Vehicle>>::iterator it = predictions.begin(); 
+  /*for (map<int, vector<Vehicle>>::iterator it = predictions.begin(); 
        it != predictions.end(); ++it) {
     next_lane_vehicle = it->second[0];
     if (next_lane_vehicle.s == this->s && next_lane_vehicle.lane == new_lane) {
       // If lane change is not possible, return empty trajectory.
       return trajectory;
     }
-  }
+  }*/
   trajectory.push_back(Vehicle(this->lane, this->s, this->v, this->a, 
                                this->state));
   vector<float> kinematics = get_kinematics(predictions, new_lane, dt);
@@ -289,15 +262,17 @@ vector<Vehicle> Vehicle::generate_predictions(double horizon, double dt) {
   //   generation for the ego vehicle.
   vector<Vehicle> predictions;
   float next_v = 0;
-  int i = 0;
-  while(next_v < horizon) {
-    float next_s = position_at(i*dt);
-    if (i < horizon-1) {
-      next_v = position_at((i+1)*dt) - s;
-    }
+  double horizon_s = this->s + horizon;
+  double next_s = 0;
+  int i = 1;
+  while(next_s < horizon_s) {
+    next_s = position_at(i*dt);
+    next_v = position_at((i+1)*dt) - next_s;
     predictions.push_back(Vehicle(this->lane, next_s, next_v, 0));
-    next_v += dt;
     i++;
+    if (i > 10) {
+	    break;
+    }
   }
   
   return predictions;
