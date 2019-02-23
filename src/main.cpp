@@ -105,7 +105,10 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
-	  double dt = 0.02;
+	  const double DT = 0.02;
+	  const double TIME_HORIZON = 5; // 5s time horizon
+	  const int STEP_HORIZON = TIME_HORIZON / DT;
+	  const int STEP_PER_TRAJECTORY_POINT = 100;
 	  map<int, Vehicle> vehicles;
 	  for (auto& sensed_vehicle : sensor_fusion) {
 	    // format is [car ID, x(map), y(map), vx (m/s), vy (m/s), s, d]
@@ -125,12 +128,11 @@ int main() {
 	  
 	  // generate trajectory
 	  map<int, vector<Vehicle>> predictions;
-	  const int DROPOUT = 10;
-	  for (int i = 0; i < 50; i++) {
+	  for (int i = 0; i < STEP_HORIZON; i++) {
 		  for (auto& kv : vehicles) {
-			predictions[kv.first] = kv.second.generate_predictions(dt*2, dt);
+			predictions[kv.first] = kv.second.generate_predictions(DT*2, DT);
 		  }
-		  vector<Vehicle> trajectory = ego.choose_next_state(predictions, dt);
+		  vector<Vehicle> trajectory = ego.choose_next_state(predictions, DT);
 		ego.realize_next_state(trajectory);
 		  ego_history.push_back(ego);
 	   std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a << ", state: " << ego.state << std::endl;
@@ -139,8 +141,8 @@ int main() {
             double next_s = ego.s;
 	    double next_d = (ego.lane+1)*4 - 2; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
 	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-	    if (i%DROPOUT == 0) {
-	      t_vals.push_back(i*dt);
+	    if (i%STEP_PER_TRAJECTORY_POINT == 0) {
+	      t_vals.push_back(i*DT);
 	      next_x_vals.push_back(xy[0]);
 	      next_y_vals.push_back(xy[1]); 
 	    }
@@ -153,9 +155,9 @@ int main() {
 
 	  vector<double> next_spline_x_vals;
 	  vector<double> next_spline_y_vals;
-	  for (int i = 0; i < 50; i++) {
-		  next_spline_x_vals.push_back(x_spline(i*dt));
-		  next_spline_y_vals.push_back(y_spline(i*dt));
+	  for (int i = 0; i < STEP_HORIZON; i++) {
+		  next_spline_x_vals.push_back(x_spline(i*DT));
+		  next_spline_y_vals.push_back(y_spline(i*DT));
 	  }
 	  
           json msgJson;
