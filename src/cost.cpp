@@ -27,12 +27,13 @@ float inefficiency_cost(const Vehicle &ego,
 
 float lane_speed(const Vehicle &ego, const map<int, vector<Vehicle>> &predictions, const int lane) {
   // Find the speed of the next car ahead of us in the lane.
+  const float HORIZON = 50; // Only consider cars within 50 meters.
   double min_same_lane_distance = 1000; // large number
   double speed = 1000; // large number
   for (const auto& kv : predictions) {
 	if (kv.second[0].lane == lane) {
 		double d = kv.second[0].s - ego.s;
-		if (d > 0 && d < min_same_lane_distance) {
+		if (d > 0 && d < min_same_lane_distance && d < HORIZON) {
 			min_same_lane_distance = d;
 			speed = kv.second[0].v;
 		}

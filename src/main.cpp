@@ -9,6 +9,7 @@
 #include "json.hpp"
 #include "vehicle.h"
 #include "cost.h"
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -29,7 +30,7 @@ int main() {
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
   Vehicle ego(0, 0, 0, 0, "KL");
-  	  ego.target_speed = mph2mps(50);
+  	  ego.target_speed = mph2mps(45);
   	  ego.lanes_available = 3;
   	  ego.goal_s = max_s;
   	  ego.goal_lane = 0;
@@ -86,6 +87,7 @@ int main() {
           double car_x = j[1]["x"];
           double car_y = j[1]["y"];
           double car_s = j[1]["s"];
+	  ego.s = car_s;
           double car_d = j[1]["d"];
           double car_yaw = j[1]["yaw"];
           // double car_speed = mph2mps(j[1]["speed"]);
@@ -119,9 +121,11 @@ int main() {
 	  }
 	  vector<double> next_x_vals;
           vector<double> next_y_vals;
+	  vector<double> t_vals;
 	  
 	  // generate trajectory
 	  map<int, vector<Vehicle>> predictions;
+	  const int DROPOUT = 10;
 	  for (int i = 0; i < 50; i++) {
 		  for (auto& kv : vehicles) {
 			predictions[kv.first] = kv.second.generate_predictions(dt*2, dt);
@@ -135,13 +139,28 @@ int main() {
             double next_s = ego.s;
 	    double next_d = (ego.lane+1)*4 - 2; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
 	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-	    next_x_vals.push_back(xy[0]);
-	    next_y_vals.push_back(xy[1]); 
+	    if (i%DROPOUT == 0) {
+	      t_vals.push_back(i*dt);
+	      next_x_vals.push_back(xy[0]);
+	      next_y_vals.push_back(xy[1]); 
+	    }
           }
+
+	  // create splines in the XY space, since I don't trust the transformation from SD to be very smooth.
+	  tk::spline x_spline, y_spline;
+	  x_spline.set_points(t_vals, next_x_vals);
+	  y_spline.set_points(t_vals, next_y_vals);
+
+	  vector<double> next_spline_x_vals;
+	  vector<double> next_spline_y_vals;
+	  for (int i = 0; i < 50; i++) {
+		  next_spline_x_vals.push_back(x_spline(i*dt));
+		  next_spline_y_vals.push_back(y_spline(i*dt));
+	  }
 	  
           json msgJson;
-          msgJson["next_x"] = next_x_vals;
-          msgJson["next_y"] = next_y_vals;
+          msgJson["next_x"] = next_spline_x_vals;
+          msgJson["next_y"] = next_spline_y_vals;
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
