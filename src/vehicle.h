@@ -13,7 +13,7 @@ class Vehicle {
  public:
   // Constructors
   Vehicle();
-  Vehicle(int lane, double s, double v, double a, string state="CS");
+  Vehicle(double d, double s, double v, double a, string state="CS");
 
   // Destructor
   virtual ~Vehicle();
@@ -32,12 +32,8 @@ class Vehicle {
 
   vector<Vehicle> keep_lane_trajectory(map<int, vector<Vehicle>> &predictions, double dt);
 
-  vector<Vehicle> lane_change_trajectory(string state, 
+  vector<Vehicle> change_lane_trajectory(string state, 
                                          map<int, vector<Vehicle>> &predictions, double dt);
-
-  vector<Vehicle> prep_lane_change_trajectory(string state, 
-                                              map<int, vector<Vehicle>> &predictions,
-					      double dt);
 
   void increment(double dt);
 
@@ -53,24 +49,13 @@ class Vehicle {
 
   void realize_next_state(vector<Vehicle> &trajectory);
 
-  void configure(vector<int> &road_data);
-
-  // public Vehicle variables
-  struct collider{
-    bool collision; // is there a collision?
-    int  time; // time collision happens
-  };
-
-  map<string, int> lane_direction = {{"PLCL", -1}, {"LCL", -1}, 
-                                     {"LCR", 1}, {"PLCR", 1}};
-
-  int L = 1;
+  map<string, int> lane_direction = {{"LCL", -1}, {"LCR", 1}};
 
   int preferred_buffer = 6; // impacts "keep lane" behavior.
 
-  int lane, goal_lane, goal_s, lanes_available;
+  int lane, lanes_available;//,goal_lane, goal_s, ;
 
-  double s, v, target_speed, a, max_acceleration;
+  double s, d, v, target_speed, a, max_acceleration;
 
   string state;
 };

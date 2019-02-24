@@ -29,11 +29,9 @@ int main() {
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
-  Vehicle ego(0, 0, 0, 0, "KL");
+  Vehicle ego(6.0, 0, 0, 0, "KL");
   	  ego.target_speed = mph2mps(45);
   	  ego.lanes_available = 3;
-  	  ego.goal_s = max_s;
-  	  ego.goal_lane = 0;
   	  ego.max_acceleration = 10;
   vector<Vehicle> ego_history{ego};
 
@@ -87,7 +85,6 @@ int main() {
           double car_x = j[1]["x"];
           double car_y = j[1]["y"];
           double car_s = j[1]["s"];
-	  ego.s = car_s;
           double car_d = j[1]["d"];
           double car_yaw = j[1]["yaw"];
           // double car_speed = mph2mps(j[1]["speed"]);
@@ -99,8 +96,8 @@ int main() {
 	    ego = ego_history[ego_history.size() - previous_path_x.size()];
 	    ego_history.clear();
 	  }
-	  // TODO: update car state with localization data
-	  // int lane = car_d/4;
+	  // TODO: consider further localization-based updates
+	  ego.s = car_s;
 
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
@@ -119,7 +116,7 @@ int main() {
 	    double a = 0; // TODO: fill in
 	    double s = sensed_vehicle[5];
 	    double d = sensed_vehicle[6];
-	    Vehicle vehicle(int(d/4), s, v, a);
+	    Vehicle vehicle(d, s, v, a);
 	    vehicles[id] = vehicle; 
 	  }
 	  vector<double> next_x_vals;
@@ -139,7 +136,7 @@ int main() {
 
             // one trajectory point is generated for every 0.02 second
             double next_s = ego.s;
-	    double next_d = (ego.lane+1)*4 - 2; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
+	    double next_d = ego.d; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
 	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 	    if (i%STEPS_PER_TRAJECTORY_POINT == 0) {
 	      t_vals.push_back(i*DT);
