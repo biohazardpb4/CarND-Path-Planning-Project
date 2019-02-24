@@ -108,7 +108,7 @@ int main() {
 	  const double DT = 0.02;
 	  const double TIME_HORIZON = 5; // 5s time horizon
 	  const int STEP_HORIZON = TIME_HORIZON / DT;
-	  const int STEP_PER_TRAJECTORY_POINT = 100;
+	  const int STEPS_PER_TRAJECTORY_POINT = 1;//100;
 	  map<int, Vehicle> vehicles;
 	  for (auto& sensed_vehicle : sensor_fusion) {
 	    // format is [car ID, x(map), y(map), vx (m/s), vy (m/s), s, d]
@@ -141,28 +141,32 @@ int main() {
             double next_s = ego.s;
 	    double next_d = (ego.lane+1)*4 - 2; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
 	    auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-	    if (i%STEP_PER_TRAJECTORY_POINT == 0) {
+	    if (i%STEPS_PER_TRAJECTORY_POINT == 0) {
 	      t_vals.push_back(i*DT);
 	      next_x_vals.push_back(xy[0]);
 	      next_y_vals.push_back(xy[1]); 
 	    }
           }
+	  json msgJson;
+	  if (STEPS_PER_TRAJECTORY_POINT > 1) {
+		  // create splines in the XY space, since I don't trust the transformation from SD to be very smooth.
+		  tk::spline x_spline, y_spline;
+		  x_spline.set_points(t_vals, next_x_vals);
+		  y_spline.set_points(t_vals, next_y_vals);
 
-	  // create splines in the XY space, since I don't trust the transformation from SD to be very smooth.
-	  tk::spline x_spline, y_spline;
-	  x_spline.set_points(t_vals, next_x_vals);
-	  y_spline.set_points(t_vals, next_y_vals);
-
-	  vector<double> next_spline_x_vals;
-	  vector<double> next_spline_y_vals;
-	  for (int i = 0; i < STEP_HORIZON; i++) {
-		  next_spline_x_vals.push_back(x_spline(i*DT));
-		  next_spline_y_vals.push_back(y_spline(i*DT));
+		  vector<double> next_spline_x_vals;
+		  vector<double> next_spline_y_vals;
+		  for (int i = 0; i < STEP_HORIZON; i++) {
+			  next_spline_x_vals.push_back(x_spline(i*DT));
+			  next_spline_y_vals.push_back(y_spline(i*DT));
+		  }
+		  
+		  msgJson["next_x"] = next_spline_x_vals;
+		  msgJson["next_y"] = next_spline_y_vals;
+	  } else {
+		  msgJson["next_x"] = next_x_vals;
+		  msgJson["next_y"] = next_y_vals;
 	  }
-	  
-          json msgJson;
-          msgJson["next_x"] = next_spline_x_vals;
-          msgJson["next_y"] = next_spline_y_vals;
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
