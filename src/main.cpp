@@ -45,9 +45,9 @@ int main() {
     std::istringstream iss(line);
     double x;
     double y;
-    float s;
-    float d_x;
-    float d_y;
+    double s;
+    double d_x;
+    double d_y;
     iss >> x;
     iss >> y;
     iss >> s;

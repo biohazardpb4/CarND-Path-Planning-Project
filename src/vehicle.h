@@ -13,7 +13,7 @@ class Vehicle {
  public:
   // Constructors
   Vehicle();
-  Vehicle(int lane, float s, float v, float a, string state="CS");
+  Vehicle(int lane, double s, double v, double a, string state="CS");
 
   // Destructor
   virtual ~Vehicle();
@@ -26,7 +26,7 @@ class Vehicle {
   vector<Vehicle> generate_trajectory(string state, 
                                       map<int, vector<Vehicle>> &predictions, double dt);
 
-  vector<float> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane, double dt, bool debug=false);
+  vector<double> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane, double dt, bool debug=false);
 
   vector<Vehicle> constant_speed_trajectory(double dt);
 
@@ -70,7 +70,7 @@ class Vehicle {
 
   int lane, goal_lane, goal_s, lanes_available;
 
-  float s, v, target_speed, a, max_acceleration;
+  double s, v, target_speed, a, max_acceleration;
 
   string state;
 };
