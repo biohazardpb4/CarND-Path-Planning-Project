@@ -232,9 +232,7 @@ vector<Vehicle> Vehicle::generate_predictions(double horizon, double dt) {
   return predictions;
 }
 
-void Vehicle::realize_next_state(vector<Vehicle> &trajectory) {
-  // Sets state and kinematics for ego vehicle using the last state of the trajectory.
-  Vehicle next_state = trajectory[1];
+void Vehicle::realize_next_state(Vehicle& next_state) {
   this->state = next_state.state;
   this->lane = next_state.lane;
   this->d = next_state.d;

@@ -47,7 +47,7 @@ class Vehicle {
 
   vector<Vehicle> generate_predictions(double horizon, double dt);
 
-  void realize_next_state(vector<Vehicle> &trajectory);
+  void realize_next_state(Vehicle &next_state);
 
   map<string, int> lane_direction = {{"LCL", -1}, {"LCR", 1}};
 
