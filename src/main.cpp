@@ -74,7 +74,7 @@ int main() {
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
 
-  const int WAYPOINT_INTERPOLATION_FACTOR = 4;
+  const int WAYPOINT_INTERPOLATION_FACTOR = 10;
   double d_i = 1.0 / WAYPOINT_INTERPOLATION_FACTOR;
   for (int i = 0; i < raw_map_waypoints_x.size(); i++) {
     double iteration = i;
@@ -144,7 +144,7 @@ int main() {
       //   of the road.
       auto sensor_fusion = j[1]["sensor_fusion"];
       const double DT = 0.02;
-      const double TIME_HORIZON = 3; // 5s time horizon
+      const double TIME_HORIZON = 2;
       const int STEP_HORIZON = TIME_HORIZON / DT;
       const int STEPS_PER_TRAJECTORY_POINT = 1;//100;
       map<int, Vehicle> vehicles;
