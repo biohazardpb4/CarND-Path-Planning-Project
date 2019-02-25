@@ -141,14 +141,19 @@ int main() {
           predictions[kv.first] = kv.second.generate_predictions(DT*2, DT);
         }
         vector<Vehicle> trajectory;
+        int j;
         if (unprocessed_ego.size() > 0) {
           trajectory = unprocessed_ego;
           unprocessed_ego.clear(); 
+          // realize the first state since the other branch skips it
+          j = 0;
           std::cout << "re-using " << trajectory.size() << " ego states" << std::endl;
         } else {
           trajectory = ego.choose_next_state(predictions, DT);
+          // skip the first vehicle in the generated trajectory
+          j = 1;
         }
-        for (int j = 1; j < trajectory.size(); j++) {
+        for (j = 1; j < trajectory.size(); j++) {
           i++;
           ego.realize_next_state(trajectory[j]);
           ego_history.push_back(ego);
