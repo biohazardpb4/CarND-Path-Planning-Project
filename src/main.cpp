@@ -87,23 +87,34 @@ int main() {
       double car_s = j[1]["s"];
       double car_d = j[1]["d"];
       double car_yaw = j[1]["yaw"];
-      // double car_speed = mph2mps(j[1]["speed"]);
-      // double car_speed = mph2mps(50); // DELETE THIS!
-      // double car_speed = prev_speed;
+
       // rewind state to the first unprocessed state
+      vector<Vehicle> unprocessed_ego{};
       const int first_unprocessed_i = ego_history.size() - previous_path_x.size();
       if (first_unprocessed_i > 0 && first_unprocessed_i < ego_history.size()) {
-        ego = ego_history[ego_history.size() - previous_path_x.size()];
+        int i = first_unprocessed_i;
+        // always preserve the first unprocessed state
+        ego = ego_history[i++];
+        // TODO: consider further localization-based updates
+        ego.s = car_s;
+        auto& prev_state = ego_history[i].state;
+        // preserve trajectory of lane change states
+        while (prev_state.compare("LCL") == 0 || prev_state.compare("LCR") == 0) {
+          unprocessed_ego.push_back(ego_history[i]);
+          i++;
+          if (i >= ego_history.size()) {
+            break;
+          }
+          prev_state = ego_history[i].state;
+        }
         ego_history.clear();
       }
-      // TODO: consider further localization-based updates
-      ego.s = car_s;
 
       // Sensor Fusion Data, a list of all other cars on the same side 
       //   of the road.
       auto sensor_fusion = j[1]["sensor_fusion"];
       const double DT = 0.02;
-      const double TIME_HORIZON = 5; // 5s time horizon
+      const double TIME_HORIZON = 3; // 5s time horizon
       const int STEP_HORIZON = TIME_HORIZON / DT;
       const int STEPS_PER_TRAJECTORY_POINT = 1;//100;
       map<int, Vehicle> vehicles;
@@ -129,17 +140,21 @@ int main() {
         for (auto& kv : vehicles) {
           predictions[kv.first] = kv.second.generate_predictions(DT*2, DT);
         }
-        vector<Vehicle> trajectory = ego.choose_next_state(predictions, DT);
+        vector<Vehicle> trajectory;
+        if (unprocessed_ego.size() > 0) {
+          trajectory = unprocessed_ego;
+          unprocessed_ego.clear(); 
+          std::cout << "re-using " << trajectory.size() << " ego states" << std::endl;
+        } else {
+          trajectory = ego.choose_next_state(predictions, DT);
+        }
         for (int j = 1; j < trajectory.size(); j++) {
           i++;
           ego.realize_next_state(trajectory[j]);
           ego_history.push_back(ego);
-          std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", v: " << ego.v << ", a: " << ego.a << ", state: " << ego.state << std::endl;
+          std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", d: " << ego.d << ", v: " << ego.v << ", a: " << ego.a << ", state: " << ego.state << std::endl;
 
-          // one trajectory point is generated for every 0.02 second
-          double next_s = ego.s;
-          double next_d = ego.d; // lanes are 0 indexed, each lane is 4m wide and we'd like to be in the middle (-2m).
-          auto xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          auto xy = getXY(ego.s, ego.d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
           if (i%STEPS_PER_TRAJECTORY_POINT == 0) {
             t_vals.push_back(i*DT);
             next_x_vals.push_back(xy[0]);

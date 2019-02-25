@@ -134,13 +134,16 @@ vector<Vehicle> Vehicle::constant_speed_trajectory(double dt) {
 vector<Vehicle> Vehicle::keep_lane_trajectory(map<int, vector<Vehicle>> &predictions, double dt) {
   // Generate a keep lane trajectory.
   vector<Vehicle> trajectory = {Vehicle(this->d, this->s, this->v, this->a, this->state)};
-  vector<double> kinematics = get_kinematics(predictions, this->lane, dt, true);
+  vector<double> kinematics = get_kinematics(predictions, this->lane, dt, false);
   double new_s = kinematics[0];
   double new_v = kinematics[1];
   double new_a = kinematics[2];
   //std::cout << "keep lane s: " << new_s << ", v: " << new_v << ", a: " << new_a << std::endl;
-  trajectory.push_back(Vehicle(this->d, new_s, new_v, new_a, "KL"));
-  
+  auto next = Vehicle(this->d, new_s, new_v, new_a, "KL");
+  next.target_speed = this->target_speed;
+  next.lanes_available = this->lanes_available;
+  next.max_acceleration = this->max_acceleration; 
+  trajectory.push_back(next);
   return trajectory;
 }
 
@@ -154,11 +157,17 @@ vector<Vehicle> Vehicle::change_lane_trajectory(string state,
   // TODO: Check if a lane change is possible (check if another vehicle occupies 
   //   that spot).
   // TODO: generate a trajectory with many points (possibly using the spline lib). Update assumptions about trajectory length in cost functions and elsewhere.
-  trajectory.push_back(Vehicle(this->d, this->s, this->v, this->a, 
-                               this->state));
-  vector<double> kinematics = get_kinematics(predictions, new_lane, dt);
-  trajectory.push_back(Vehicle(new_d, kinematics[0], kinematics[1], 
-                               kinematics[2], state));
+  trajectory.push_back(*this);
+  const int STEP_HORIZON = 25;
+  double dd = (new_d - this->d)/double(STEP_HORIZON);
+  for (int i = 1; i <= STEP_HORIZON; i++) {
+    vector<double> kinematics = trajectory[i-1].get_kinematics(predictions, new_lane, dt);
+    auto next = Vehicle(this->d + dd*i, kinematics[0], kinematics[1], kinematics[2], state);
+    next.target_speed = this->target_speed;
+    next.lanes_available = this->lanes_available;
+    next.max_acceleration = this->max_acceleration;
+    trajectory.push_back(next);
+  }
   return trajectory;
 }
 
