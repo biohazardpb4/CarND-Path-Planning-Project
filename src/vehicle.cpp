@@ -1,11 +1,13 @@
 #include "vehicle.h"
+#include "helpers.h"
+#include "cost.h"
 #include <algorithm>
 #include <iostream>
 #include <iterator>
 #include <map>
 #include <string>
 #include <vector>
-#include "cost.h"
+#include <math.h>
 
 using std::string;
 using std::vector;
@@ -156,13 +158,21 @@ vector<Vehicle> Vehicle::change_lane_trajectory(string state,
   vector<Vehicle> trajectory;
   // TODO: Check if a lane change is possible (check if another vehicle occupies 
   //   that spot).
-  // TODO: generate a trajectory with many points (possibly using the spline lib). Update assumptions about trajectory length in cost functions and elsewhere.
   trajectory.push_back(*this);
-  const int STEP_HORIZON = 25;
-  double dd = (new_d - this->d)/double(STEP_HORIZON);
+
+  const double TIME_HORIZON=2;
+  auto start = vector<double>{this->d, 0, 0};
+  auto end = vector<double>{new_d, 0, 0};
+  auto coeffs = jerk_min_trajectory(start, end, TIME_HORIZON);
+
+  double d_i = this->d, a_3(coeffs[3]), a_4(coeffs[4]), a_5(coeffs[5]);
+  const int STEP_HORIZON = int(TIME_HORIZON*50);
   for (int i = 1; i <= STEP_HORIZON; i++) {
+    double t = dt*i;
+    double d = d_i + a_3*pow(t, 3) + a_4*pow(t, 4) + a_5*pow(t, 5);
+
     vector<double> kinematics = trajectory[i-1].get_kinematics(predictions, new_lane, dt);
-    auto next = Vehicle(this->d + dd*i, kinematics[0], kinematics[1], kinematics[2], state);
+    auto next = Vehicle(d, kinematics[0], kinematics[1], kinematics[2], state);
     next.target_speed = this->target_speed;
     next.lanes_available = this->lanes_available;
     next.max_acceleration = this->max_acceleration;
