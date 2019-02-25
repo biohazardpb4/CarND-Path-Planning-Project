@@ -20,11 +20,12 @@ int main() {
   uWS::Hub h;
 
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
-  vector<double> map_waypoints_x;
-  vector<double> map_waypoints_y;
-  vector<double> map_waypoints_s;
-  vector<double> map_waypoints_dx;
-  vector<double> map_waypoints_dy;
+  vector<double> raw_map_waypoints_iteration;
+  vector<double> raw_map_waypoints_x;
+  vector<double> raw_map_waypoints_y;
+  vector<double> raw_map_waypoints_s;
+  vector<double> raw_map_waypoints_dx;
+  vector<double> raw_map_waypoints_dy;
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
@@ -35,10 +36,10 @@ int main() {
   ego.max_acceleration = 10;
   vector<Vehicle> ego_history{ego};
 
-
   std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
 
   string line;
+  double iteration = 0;
   while (getline(in_map_, line)) {
     std::istringstream iss(line);
     double x;
@@ -51,11 +52,40 @@ int main() {
     iss >> s;
     iss >> d_x;
     iss >> d_y;
-    map_waypoints_x.push_back(x);
-    map_waypoints_y.push_back(y);
-    map_waypoints_s.push_back(s);
-    map_waypoints_dx.push_back(d_x);
-    map_waypoints_dy.push_back(d_y);
+    raw_map_waypoints_iteration.push_back(iteration);
+    iteration += 1;
+    raw_map_waypoints_x.push_back(x);
+    raw_map_waypoints_y.push_back(y);
+    raw_map_waypoints_s.push_back(s);
+    raw_map_waypoints_dx.push_back(d_x);
+    raw_map_waypoints_dy.push_back(d_y);
+  }
+  // create splines in the XY space, since I don't trust the transformation from SD to be very smooth.
+  tk::spline waypoints_x_spline, waypoints_y_spline, waypoints_s_spline, waypoints_dx_spline, waypoints_dy_spline;
+  waypoints_x_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_x);
+  waypoints_y_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_y);
+  waypoints_s_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_s);
+  waypoints_dx_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_dx);
+  waypoints_dy_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_dy);
+
+  vector<double> map_waypoints_x;
+  vector<double> map_waypoints_y;
+  vector<double> map_waypoints_s;
+  vector<double> map_waypoints_dx;
+  vector<double> map_waypoints_dy;
+
+  const int WAYPOINT_INTERPOLATION_FACTOR = 4;
+  double d_i = 1.0 / WAYPOINT_INTERPOLATION_FACTOR;
+  for (int i = 0; i < raw_map_waypoints_x.size(); i++) {
+    double iteration = i;
+    for (int j = 0; j < WAYPOINT_INTERPOLATION_FACTOR; j++) {
+      map_waypoints_x.push_back(waypoints_x_spline(iteration));
+      map_waypoints_y.push_back(waypoints_y_spline(iteration));
+      map_waypoints_s.push_back(waypoints_s_spline(iteration));
+      map_waypoints_dx.push_back(waypoints_dx_spline(iteration));
+      map_waypoints_dy.push_back(waypoints_dy_spline(iteration));
+      iteration += d_i;
+    }
   }
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
