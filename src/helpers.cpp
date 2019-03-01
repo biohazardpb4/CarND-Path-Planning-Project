@@ -169,22 +169,22 @@ double projectOnWaypointPath(double vs, double car_s, double car_d, const vector
   int mid_wp = (first_wp+1)%maps_x.size();
   int last_wp = (mid_wp+1)%maps_x.size();
 
-  double n_x = maps_x[mid_wp]-maps_x[first_wp];
-  double n_y = maps_y[mid_wp]-maps_y[first_wp];
-  double x_x = maps_x[last_wp] - maps_x[mid_wp];
-  double x_y = maps_y[last_wp] - maps_y[mid_wp];
+  // generate two segments with the latest 3 points
+  double x1 = maps_x[mid_wp]-maps_x[first_wp];
+  double y1 = maps_y[mid_wp]-maps_y[first_wp];
+  double x2 = maps_x[last_wp] - maps_x[mid_wp];
+  double y2 = maps_y[last_wp] - maps_y[mid_wp];
 
-  // find the projection of x onto n
-  double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
-  double proj_x = proj_norm*n_x;
-  double proj_y = proj_norm*n_y;
+  // solve angle of incidence
+  double theta = acos((x1*x2 + y1*y2)/(distance(0, 0, x1, y1)*distance(0, 0, x2, y2)));
 
-  double inner_r = distance(x_x,x_y,proj_x,proj_y);
+  // use some trig to scale vs to inner radius
+  double inner_r = vs/(2*tan(theta/2));
 
   // assume that inner_r is always positive since we're always to
   // the right of the center of the road (waypoints are in the
   // center of the road).
-  return (vs*inner_r)/(inner_r+car_d); 
+  return (vs*(inner_r-car_d))/inner_r; 
 }
 
 vector<double> jerk_min_trajectory(vector<double> &start, vector<double> &end, double T) {

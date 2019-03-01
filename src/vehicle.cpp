@@ -96,7 +96,6 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
   //   for a given lane. Tries to choose the maximum velocity and acceleration, 
   //   given other vehicle positions and accel/velocity constraints.
   double max_velocity_accel_limit = this->max_acceleration*dt + this->v;
-  // TODO: thread waypoints through to vehicle
   double scaled_target_speed = projectOnWaypointPath(this->target_speed, this->s, this->d, Vehicle::map_waypoints_x, Vehicle::map_waypoints_y, Vehicle::map_waypoints_s);
   double new_position;
   double new_velocity;
