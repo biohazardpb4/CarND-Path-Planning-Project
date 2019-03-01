@@ -30,12 +30,6 @@ int main() {
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
-  Vehicle ego(6.0, 0, 0, 0, "KL");
-  ego.target_speed = mph2mps(45);
-  ego.lanes_available = 3;
-  ego.max_acceleration = 10;
-  vector<Vehicle> ego_history{ego};
-
   std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
 
   string line;
@@ -68,9 +62,9 @@ int main() {
   waypoints_dx_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_dx);
   waypoints_dy_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_dy);
 
-  vector<double> map_waypoints_x;
-  vector<double> map_waypoints_y;
-  vector<double> map_waypoints_s;
+  vector<double>& map_waypoints_x = Vehicle::map_waypoints_x;
+  vector<double>& map_waypoints_y = Vehicle::map_waypoints_y;
+  vector<double>& map_waypoints_s = Vehicle::map_waypoints_s;
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
 
@@ -87,6 +81,13 @@ int main() {
       iteration += d_i;
     }
   }
+
+  Vehicle ego(6.0, 0, 0, 0, "KL");
+  ego.target_speed = mph2mps(45);
+  ego.lanes_available = 3;
+  ego.max_acceleration = 10;
+  vector<Vehicle> ego_history{ego};
+
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
       &map_waypoints_dx, &map_waypoints_dy, &ego, &max_s, &ego_history]
@@ -126,7 +127,7 @@ int main() {
         // always preserve the first unprocessed state
         ego = ego_history[i++];
         // TODO: consider further localization-based updates
-        ego.s = car_s;
+        // ego.s = car_s;
         auto& prev_state = ego_history[i].state;
         // preserve trajectory of lane change states
         while (prev_state.compare("LCL") == 0 || prev_state.compare("LCR") == 0) {

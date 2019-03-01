@@ -43,6 +43,8 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
                      const vector<double> &maps_x, 
                      const vector<double> &maps_y);
 
+double projectOnWaypointPath(double vs, double car_s, double car_d, const vector<double> &map_s, const vector<double> &maps_x, const vector<double> &maps_y);
+
 vector<double> jerk_min_trajectory(vector<double> &start, vector<double> &end, double T);
 
 #endif  // HELPERS_H

@@ -159,6 +159,34 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
+double projectOnWaypointPath(double vs, double car_s, double car_d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y) {
+  int first_wp = -1;
+
+  while (car_s > maps_s[first_wp+1] && (first_wp < (int)(maps_s.size()-1))) {
+    ++first_wp;
+  }
+
+  int mid_wp = (first_wp+1)%maps_x.size();
+  int last_wp = (mid_wp+1)%maps_x.size();
+
+  double n_x = maps_x[mid_wp]-maps_x[first_wp];
+  double n_y = maps_y[mid_wp]-maps_y[first_wp];
+  double x_x = maps_x[last_wp] - maps_x[mid_wp];
+  double x_y = maps_y[last_wp] - maps_y[mid_wp];
+
+  // find the projection of x onto n
+  double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
+  double proj_x = proj_norm*n_x;
+  double proj_y = proj_norm*n_y;
+
+  double inner_r = distance(x_x,x_y,proj_x,proj_y);
+
+  // assume that inner_r is always positive since we're always to
+  // the right of the center of the road (waypoints are in the
+  // center of the road).
+  return (vs*inner_r)/(inner_r+car_d); 
+}
+
 vector<double> jerk_min_trajectory(vector<double> &start, vector<double> &end, double T) {
   /**
    * Calculate the Jerk Minimizing Trajectory that connects the initial state

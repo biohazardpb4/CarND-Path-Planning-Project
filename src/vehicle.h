@@ -58,6 +58,10 @@ class Vehicle {
   double s, d, v, target_speed, a, max_acceleration;
 
   string state;
+
+  static vector<double> map_waypoints_x;
+  static vector<double> map_waypoints_y;
+  static vector<double> map_waypoints_s;
 };
 
 #endif  // VEHICLE_H

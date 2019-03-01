@@ -12,6 +12,10 @@
 using std::string;
 using std::vector;
 
+vector<double> Vehicle::map_waypoints_x = vector<double>{};
+vector<double> Vehicle::map_waypoints_y = vector<double>{};
+vector<double> Vehicle::map_waypoints_s = vector<double>{};
+
 // Initializes Vehicle
 Vehicle::Vehicle(){}
 
@@ -92,6 +96,8 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
   //   for a given lane. Tries to choose the maximum velocity and acceleration, 
   //   given other vehicle positions and accel/velocity constraints.
   double max_velocity_accel_limit = this->max_acceleration*dt + this->v;
+  // TODO: thread waypoints through to vehicle
+  double scaled_target_speed = projectOnWaypointPath(this->target_speed, this->s, this->d, Vehicle::map_waypoints_x, Vehicle::map_waypoints_y, Vehicle::map_waypoints_s);
   double new_position;
   double new_velocity;
   double new_accel;
@@ -108,11 +114,11 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
                                   - 0.5 * (this->a);
       new_velocity = std::min(std::min(max_velocity_in_front, 
                                        max_velocity_accel_limit), 
-                                       this->target_speed);
+                                       scaled_target_speed);
       if(debug) std::cout << "vehicle ahead. new velocity: " << new_velocity << std::endl;
     //}
   } else {
-    new_velocity = std::min(max_velocity_accel_limit, this->target_speed);
+    new_velocity = std::min(max_velocity_accel_limit, scaled_target_speed);
       if(debug) std::cout << "clear path. new velocity: " << new_velocity << std::endl;
   }
   new_velocity = std::max(new_velocity, 0.0);
@@ -128,8 +134,8 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
 vector<Vehicle> Vehicle::constant_speed_trajectory(double dt) {
   // Generate a constant speed trajectory.
   double next_pos = position_at(dt);
-  vector<Vehicle> trajectory = {Vehicle(this->d,this->s,this->v,this->a,this->state), 
-                                Vehicle(this->d,next_pos,this->v,0,this->state)};
+  vector<Vehicle> trajectory = {Vehicle(this->d,this->s,this->v,this->a, this->state), 
+                                Vehicle(this->d,next_pos,this->v,0, this->state)};
   return trajectory;
 }
 
@@ -172,7 +178,8 @@ vector<Vehicle> Vehicle::change_lane_trajectory(string state,
     double d = d_i + a_3*pow(t, 3) + a_4*pow(t, 4) + a_5*pow(t, 5);
 
     vector<double> kinematics = trajectory[i-1].get_kinematics(predictions, new_lane, dt);
-    auto next = Vehicle(d, kinematics[0], kinematics[1], kinematics[2], state);
+    double next_a = 0; // kinematics[2]
+    auto next = Vehicle(d, kinematics[0], kinematics[1], next_a, state);
     next.target_speed = this->target_speed;
     next.lanes_available = this->lanes_available;
     next.max_acceleration = this->max_acceleration;
