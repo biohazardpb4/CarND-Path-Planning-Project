@@ -96,7 +96,7 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
   //   for a given lane. Tries to choose the maximum velocity and acceleration, 
   //   given other vehicle positions and accel/velocity constraints.
   double max_velocity_accel_limit = this->max_acceleration*dt + this->v;
-  double scaled_target_speed = projectOnWaypointPath(this->target_speed, this->s, this->d, Vehicle::map_waypoints_x, Vehicle::map_waypoints_y, Vehicle::map_waypoints_s);
+  double scaled_target_speed = projectOnWaypointPath(this->target_speed, this->s, this->d, Vehicle::map_waypoints_s, Vehicle::map_waypoints_x, Vehicle::map_waypoints_y);
   double new_position;
   double new_velocity;
   double new_accel;
@@ -124,7 +124,6 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
   new_accel = (new_velocity - this->v)/dt; // Equation: (v_1 - v_0)/t = acceleration
   new_accel = std::max(new_accel, -this->max_acceleration); // cap the acceleration on the low end
   new_position = this->s + 0.5*(this->v + new_velocity)*dt; // d' = d + (vi + vf) / 2 * t
-  //new_position = std::min(new_position, 0.5f); // HACK
   //if(debug) std::cout << "old s: " << this->s << ", v: " << this->v << ", a: " << this->a << std::endl;
   //if(debug) std::cout << "new s: " << new_position << ", v: " << new_velocity << ", a: " <<new_accel << std::endl;
   return{new_position, new_velocity, new_accel};

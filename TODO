@@ -1,0 +1,3 @@
+- implement feasibility cost function(s)
+- generate several potential trajectories for state changes (even using jerk min trajectory for KL state)
+- capture third order polynomial trajectories for other vehicle prediction
