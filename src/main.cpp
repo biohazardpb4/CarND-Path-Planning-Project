@@ -82,10 +82,8 @@ int main() {
     }
   }
 
-  Vehicle ego(6.0, 0, 0, 0, "KL");
-  ego.target_speed = mph2mps(45);
-  ego.lanes_available = 3;
-  ego.max_acceleration = 10;
+  double d = 6.0;
+  Vehicle ego(0, 0, 0, d, 0, 0, "KL");
   vector<Vehicle> ego_history{ego};
 
 
@@ -147,18 +145,19 @@ int main() {
       const double DT = 0.02;
       const double TIME_HORIZON = 2;
       const int STEP_HORIZON = TIME_HORIZON / DT;
-      const int STEPS_PER_TRAJECTORY_POINT = 1;//100;
+      const int STEPS_PER_TRAJECTORY_POINT = 1;
       map<int, Vehicle> vehicles;
       for (auto& sensed_vehicle : sensor_fusion) {
         // format is [car ID, x(map), y(map), vx (m/s), vy (m/s), s, d]
         int id = sensed_vehicle[0];
         double vx = sensed_vehicle[3];
         double vy = sensed_vehicle[4];
-        double v = distance(0, 0, vx, vy);
-        double a = 0; // TODO: fill in
         double s = sensed_vehicle[5];
+        double s_dot = distance(0, 0, vx, vy); // TODO: maybe turn this into s and d components
+        double s_ddot = 0; // TODO: fill in
         double d = sensed_vehicle[6];
-        Vehicle vehicle(d, s, v, a);
+        double d_dot = 0, d_ddot = 0;
+        Vehicle vehicle(s, s_dot, s_ddot, d, d_dot, d_ddot);
         vehicles[id] = vehicle; 
       }
       vector<double> next_x_vals;
@@ -175,7 +174,7 @@ int main() {
         int j;
         if (unprocessed_ego.size() > 0) {
           trajectory = unprocessed_ego;
-          unprocessed_ego.clear(); 
+          unprocessed_ego.clear();
           // realize the first state since the other branch skips it
           j = 0;
           std::cout << "re-using " << trajectory.size() << " ego states" << std::endl;
@@ -188,7 +187,7 @@ int main() {
           i++;
           ego.realize_next_state(trajectory[j]);
           ego_history.push_back(ego);
-          std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", d: " << ego.d << ", v: " << ego.v << ", a: " << ego.a << ", state: " << ego.state << std::endl;
+          std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", d: " << ego.d << ", v: " << ego.s_dot << ", a: " << ego.s_ddot << ", state: " << ego.state << std::endl;
 
           auto xy = getXY(ego.s, ego.d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
           if (i%STEPS_PER_TRAJECTORY_POINT == 0) {
@@ -234,8 +233,11 @@ int main() {
   h.onConnection([&h, &ego, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
       std::cout << "Connected!!!" << std::endl;
       ego.s = 0;
-      ego.v = 0;
-      ego.a = 0;
+      ego.s_dot = 0;
+      ego.s_ddot = 0;
+      ego.d = 6.0;
+      ego.d_dot = 0;
+      ego.d_ddot = 0;
       ego_history.clear();
       });
 
