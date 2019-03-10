@@ -21,7 +21,7 @@ float inefficiency_cost(const Vehicle &ego,
                         const map<int, vector<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with intended lane and final lane 
   //   that have traffic slower than ego's target speed.
-  float proposed_speed_final = lane_speed(ego, predictions, trajectory[trajectory.size()-1].lane);
+  float proposed_speed_final = lane_speed(ego, predictions, trajectory[trajectory.size()-1].lane());
   // std::cout << "lane " << trajectory[1].lane << " speed: " << proposed_speed_final << std::endl;
   float cost = (2.0*ego.target_speed - proposed_speed_final)/ego.target_speed;
 
@@ -55,7 +55,7 @@ float lane_speed(const Vehicle &ego, const map<int, vector<Vehicle>> &prediction
   double min_same_lane_distance = 1000; // large number
   double speed = 1000; // large number
   for (const auto& kv : predictions) {
-	if (kv.second[0].lane == lane) {
+	if (kv.second[0].lane() == lane) {
 		double d = kv.second[0].s - ego.s;
 		if (d > 0 && d < min_same_lane_distance && d < HORIZON) {
 			min_same_lane_distance = d;

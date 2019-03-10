@@ -83,9 +83,9 @@ int main() {
   }
 
   double d = 6.0;
-  Vehicle ego(0, 0, 0, d, 0, 0, "KL");
-  vector<Vehicle> ego_history{ego};
-
+  double vs = mph2mps(45);
+  Vehicle ego(0, vs, 0, d, 0, 0); // Also initialized in onConnected.
+  vector<Vehicle> ego_history;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
       &map_waypoints_dx, &map_waypoints_dy, &ego, &max_s, &ego_history]
@@ -106,9 +106,6 @@ int main() {
       if (event == "telemetry") {
       auto previous_path_x = j[1]["previous_path_x"];
       auto previous_path_y = j[1]["previous_path_y"];
-      // Previous path's end s and d values 
-      double end_path_s = j[1]["end_path_s"];
-      double end_path_d = j[1]["end_path_d"];
 
       // ego's localization Data
       double car_x = j[1]["x"];
@@ -118,24 +115,10 @@ int main() {
       double car_yaw = j[1]["yaw"];
 
       // rewind state to the first unprocessed state
-      vector<Vehicle> unprocessed_ego{};
       const int first_unprocessed_i = ego_history.size() - previous_path_x.size();
       if (first_unprocessed_i > 0 && first_unprocessed_i < ego_history.size()) {
-        int i = first_unprocessed_i;
-        // always preserve the first unprocessed state
-        ego = ego_history[i++];
-        // TODO: consider further localization-based updates
-        // ego.s = car_s;
-        auto& prev_state = ego_history[i].state;
-        // preserve trajectory of lane change states
-        while (prev_state.compare("LCL") == 0 || prev_state.compare("LCR") == 0) {
-          unprocessed_ego.push_back(ego_history[i]);
-          i++;
-          if (i >= ego_history.size()) {
-            break;
-          }
-          prev_state = ego_history[i].state;
-        }
+        // revert the ego state back to the first unprocessed state
+        ego = ego_history[first_unprocessed_i];
         ego_history.clear();
       }
 
@@ -145,8 +128,7 @@ int main() {
       const double DT = 0.02;
       const double TIME_HORIZON = 2;
       const int STEP_HORIZON = TIME_HORIZON / DT;
-      const int STEPS_PER_TRAJECTORY_POINT = 1;
-      map<int, Vehicle> vehicles;
+      map<int, Vehicle> sensed_vehicles;
       for (auto& sensed_vehicle : sensor_fusion) {
         // format is [car ID, x(map), y(map), vx (m/s), vy (m/s), s, d]
         int id = sensed_vehicle[0];
@@ -157,66 +139,32 @@ int main() {
         double as = 0; // TODO: fill in
         double d = sensed_vehicle[6];
         double vd = 0, ad = 0;
-        Vehicle vehicle(s, vs, as, d, vd, ad);
-        vehicles[id] = vehicle; 
+        sensed_vehicles[id] = Vehicle(s, vs, as, d, vd, ad); 
       }
       vector<double> next_x_vals;
       vector<double> next_y_vals;
-      vector<double> t_vals;
 
       // generate trajectory
       map<int, vector<Vehicle>> predictions;
-      for (auto& kv : vehicles) {
-        predictions[kv.first] = kv.second.generate_predictions(TIME_HORIZON, DT);
-      }
       for (int i = 0; i < STEP_HORIZON;) {
-        vector<Vehicle> trajectory;
-        int j;
-        if (unprocessed_ego.size() > 0) {
-          trajectory = unprocessed_ego;
-          unprocessed_ego.clear();
-          // realize the first state since the other branch skips it
-          j = 0;
-          std::cout << "re-using " << trajectory.size() << " ego states" << std::endl;
-        } else {
-          trajectory = ego.choose_next_state(predictions, DT);
-          // skip the first vehicle in the generated trajectory
-          j = 1;
+        for (auto& kv : sensed_vehicles) {
+          predictions[kv.first] = kv.second.at(i*DT).generate_predictions(TIME_HORIZON, DT);
         }
-        for (j = 1; j < trajectory.size(); j++) {
+        vector<Vehicle> trajectory = ego.choose_next_trajectory(predictions, DT);
+        for (int j = 1; j < trajectory.size() && i < STEP_HORIZON; j++) {
           i++;
           ego = trajectory[j];
           ego_history.push_back(ego);
-          std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", d: " << ego.d << ", v: " << ego.vs << ", a: " << ego.as << ", state: " << ego.state << std::endl;
+          std::cout << "i: " << i << ", j: " << j << ", lane: " << ego.lane() << ", s: " << ego.s << ", vs: " << ego.vs << ", as: " << ego.as << ", d: " << ego.d << ", vd: " << ego.vd << ", ad: " << ego.ad << std::endl;
 
           auto xy = getXY(ego.s, ego.d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          if (i%STEPS_PER_TRAJECTORY_POINT == 0) {
-            t_vals.push_back(i*DT);
-            next_x_vals.push_back(xy[0]);
-            next_y_vals.push_back(xy[1]); 
-          }
+          next_x_vals.push_back(xy[0]);
+          next_y_vals.push_back(xy[1]);
         }
       }
       json msgJson;
-      if (STEPS_PER_TRAJECTORY_POINT > 1) {
-        // create splines in the XY space, since I don't trust the transformation from SD to be very smooth.
-        tk::spline x_spline, y_spline;
-        x_spline.set_points(t_vals, next_x_vals);
-        y_spline.set_points(t_vals, next_y_vals);
-
-        vector<double> next_spline_x_vals;
-        vector<double> next_spline_y_vals;
-        for (int i = 0; i < STEP_HORIZON; i++) {
-          next_spline_x_vals.push_back(x_spline(i*DT));
-          next_spline_y_vals.push_back(y_spline(i*DT));
-        }
-
-        msgJson["next_x"] = next_spline_x_vals;
-        msgJson["next_y"] = next_spline_y_vals;
-      } else {
-        msgJson["next_x"] = next_x_vals;
-        msgJson["next_y"] = next_y_vals;
-      }
+      msgJson["next_x"] = next_x_vals;
+      msgJson["next_y"] = next_y_vals;
 
       auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
@@ -233,7 +181,7 @@ int main() {
   h.onConnection([&h, &ego, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
       std::cout << "Connected!!!" << std::endl;
       ego.s = 0;
-      ego.vs = 0;
+      ego.vs = mph2mps(45);
       ego.as = 0;
       ego.d = 6.0;
       ego.vd = 0;
