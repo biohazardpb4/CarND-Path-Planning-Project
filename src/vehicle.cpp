@@ -40,15 +40,11 @@ vector<Vehicle> Vehicle::choose_next_trajectory(map<int, vector<Vehicle>> &predi
    *   vehicle state.
    */
   vector<vector<Vehicle>> potential_trajectories;
-  bool skip_const = false;
+  for (auto const &potential_trajectory : constant_speed_trajectories(dt)) {
+    potential_trajectories.push_back(potential_trajectory);
+  }
   for (auto const &potential_trajectory : slow_down_for_ahead_trajectories(predictions, dt)) {
     potential_trajectories.push_back(potential_trajectory);
-    skip_const = true;
-  }
-  if (!skip_const) { // HACK!! REMOVE IMMEDIATELY
-    for (auto const &potential_trajectory : constant_speed_trajectories(dt)) {
-      potential_trajectories.push_back(potential_trajectory);
-    }
   }
   // TODO: add other potential trajectories
 
@@ -118,15 +114,12 @@ Vehicle Vehicle::at(double dt) {
 
 vector<vector<Vehicle>> Vehicle::constant_speed_trajectories(double dt)
 {
-  //auto ego = *this;
-  //std::cout << "vehicle -- lane: " << ego.lane() << ", s: " << ego.s << ", vs: " << ego.vs << ", as: " << ego.as << ", d: " << ego.d << ", vd: " << ego.vd << ", ad: " << ego.ad << std::endl;
   // Generate a constant speed trajectory.
-  vector<Vehicle> single_step = {*this, this->at(dt)};
   vector<Vehicle> until_horizon = {*this};
   for (double t = 0; t < 2.0; t+=dt) {
     until_horizon.push_back(this->at(t));
   }
-  vector<vector<Vehicle>> trajectory = {until_horizon, single_step};
+  vector<vector<Vehicle>> trajectory = {until_horizon};
   return trajectory;
 }
 

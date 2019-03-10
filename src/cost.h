@@ -32,4 +32,8 @@ float lane_speed(const Vehicle &ego,
 	         const map<int, vector<Vehicle>> &predictions,
 		 const int lane);
 
+float nearest_vehicle(
+	const vector<Vehicle> &trajectory,
+	const map<int, vector<Vehicle>> &predictions);
+
 #endif  // COST_H

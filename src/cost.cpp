@@ -1,5 +1,6 @@
 #include "cost.h"
-#include <cmath>
+#include <iostream>
+#include <math.h>
 #include <functional>
 #include <iostream>
 #include <iterator>
@@ -22,7 +23,6 @@ float inefficiency_cost(const Vehicle &ego,
   // Cost becomes higher for trajectories with intended lane and final lane 
   //   that have traffic slower than ego's target speed.
   float proposed_speed_final = lane_speed(ego, predictions, trajectory[trajectory.size()-1].lane());
-  // std::cout << "lane " << trajectory[1].lane << " speed: " << proposed_speed_final << std::endl;
   float cost = (2.0*ego.target_speed - proposed_speed_final)/ego.target_speed;
 
   return cost;
@@ -46,7 +46,9 @@ float collision_cost(const Vehicle &ego,
                         const vector<Vehicle> &trajectory, 
                         const map<int, vector<Vehicle>> &predictions) {
   // Cost becomes higher when collisions occur
-  return 0;
+  float nearest = nearest_vehicle(trajectory, predictions);
+  std::cout << "nearest vehicle: " << nearest << std::endl;
+  return nearest < 2 ? 1 : 0;
 }
 
 float lane_speed(const Vehicle &ego, const map<int, vector<Vehicle>> &predictions, const int lane) {
@@ -85,3 +87,16 @@ float calculate_cost(const Vehicle &ego,
   return cost;
 }
 
+float nearest_vehicle(const vector<Vehicle> &trajectory, const map<int, vector<Vehicle>> &predictions) {
+  float nearest = 1000000; // big number
+  double DT = 0.02; // WARNING -- THIS MUST LINE UP WITH WHAT WAS USED TO GENERATE THE TRAJECTORY!
+  double t = 0;
+  for (const auto& ego : trajectory) {
+    for (const auto& kv : predictions) {
+      const Vehicle& predicted = kv.second.at(t);
+      float d = distance(ego.s, ego.d, predicted.s, predicted.d);
+      nearest = std::min(nearest, d);
+    }
+  }
+  return nearest;
+}
