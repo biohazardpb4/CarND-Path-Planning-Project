@@ -20,7 +20,9 @@ vector<double> Vehicle::map_waypoints_s = vector<double>{};
 Vehicle::Vehicle() {}
 
 Vehicle::Vehicle(double s, double vs, double as, double d, double vd, double ad, string state) :
-  s(s), vs(vs), as(as), d(d), vd(vd), ad(ad), state(state) {}
+  s(s), vs(vs), as(as), d(d), vd(vd), ad(ad), state(state) {
+    this->lane = int(d/4);
+  }
 
 Vehicle::~Vehicle() {}
 

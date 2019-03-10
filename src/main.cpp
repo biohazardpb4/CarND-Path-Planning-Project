@@ -168,7 +168,7 @@ int main() {
       map<int, vector<Vehicle>> predictions;
       for (int i = 0; i < STEP_HORIZON;) {
         for (auto& kv : vehicles) {
-          predictions[kv.first] = kv.second.generate_predictions(DT*2, DT);
+          predictions[kv.first] = kv.second.generate_predictions(TIME_HORIZON, DT);
         }
         vector<Vehicle> trajectory;
         int j;
