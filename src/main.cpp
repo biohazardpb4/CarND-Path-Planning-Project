@@ -8,6 +8,7 @@
 #include "helpers.h"
 #include "json.hpp"
 #include "vehicle.h"
+#include "trajectory.h"
 #include "cost.h"
 #include "spline.h"
 
@@ -145,15 +146,15 @@ int main() {
       vector<double> next_y_vals;
 
       // generate trajectory
-      map<int, vector<Vehicle>> predictions;
+      map<int, Trajectory<Vehicle>> predictions;
       for (int i = 0; i < STEP_HORIZON;) {
         for (auto& kv : sensed_vehicles) {
           predictions[kv.first] = kv.second.at(i*DT).generate_predictions(TIME_HORIZON, DT);
         }
-        vector<Vehicle> trajectory = ego.choose_next_trajectory(predictions, DT);
-        for (int j = 1; j < trajectory.size() && i < STEP_HORIZON; j++) {
+        Trajectory<Vehicle> trajectory = ego.choose_next_trajectory(predictions, DT);
+        for (int j = 1; j < trajectory.path.size() && i < STEP_HORIZON; j++) {
           i++;
-          ego = trajectory[j];
+          ego = trajectory.path[j];
           ego_history.push_back(ego);
           std::cout << "i: " << i << ", j: " << j << ", lane: " << ego.lane() << ", s: " << ego.s << ", vs: " << ego.vs << ", as: " << ego.as << ", d: " << ego.d << ", vd: " << ego.vd << ", ad: " << ego.ad << std::endl;
 

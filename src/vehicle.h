@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "helpers.h"
+#include "trajectory.h"
 
 using std::map;
 using std::string;
@@ -21,23 +22,23 @@ public:
   virtual ~Vehicle();
 
   // Vehicle functions
-  vector<Vehicle> choose_next_trajectory(map<int, vector<Vehicle>> &predictions, double dt);
+  Trajectory<Vehicle> choose_next_trajectory(map<int, Trajectory<Vehicle>> &predictions, double dt);
 
-  //vector<double> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane, double dt, bool debug = false);
+  //vector<double> get_kinematics(map<int, Trajectory<Vehicle>> &predictions, int lane, double dt, bool debug = false);
 
-  Vehicle at(double dt);
+  Vehicle at(double dt) const;
 
   // Trajectories
-  vector<vector<Vehicle>> constant_speed_trajectories(double dt);
-  vector<vector<Vehicle>> slow_down_for_ahead_trajectories(map<int, vector<Vehicle>> &predictions, double dt);
-  // vector<vector<Vehicle>> change_lane_trajectories(string state, map<int, vector<Vehicle>> &predictions, double dt);
+  vector<Trajectory<Vehicle>> constant_speed_trajectories(double dt);
+  vector<Trajectory<Vehicle>> slow_down_for_ahead_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
+  // vector<Trajectory<Vehicle>> change_lane_trajectories(string state, map<int, Trajectory<Vehicle>> &predictions, double dt);
 
-  // bool get_vehicle_behind(map<int, vector<Vehicle>> &predictions, int lane,
+  // bool get_vehicle_behind(map<int, Trajectory<Vehicle>> &predictions, int lane,
   //                         Vehicle &rVehicle);
 
-  bool get_vehicle_ahead(map<int, vector<Vehicle>> &predictions, int lane, Vehicle &rVehicle);
+  bool get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions, int lane, Vehicle &rVehicle);
 
-  vector<Vehicle> generate_predictions(double horizon, double dt);
+  Trajectory<Vehicle> generate_predictions(double horizon, double dt);
 
   int lane() const;
 
