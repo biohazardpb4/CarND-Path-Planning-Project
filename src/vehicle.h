@@ -15,7 +15,7 @@ class Vehicle
 public:
   // Constructors
   Vehicle();
-  Vehicle(double s, double s_dot, double s_ddot, double d, double d_dot, double d_ddot, string state = "CS");
+  Vehicle(double s, double vs, double as, double d, double vd, double ad, string state = "CS");
 
   // Destructor
   virtual ~Vehicle();
@@ -30,16 +30,12 @@ public:
 
   vector<double> get_kinematics(map<int, vector<Vehicle>> &predictions, int lane, double dt, bool debug = false);
 
+  Vehicle at(double dt);
+
+  // Trajectories
   vector<Vehicle> constant_speed_trajectory(double dt);
-
   vector<Vehicle> keep_lane_trajectory(map<int, vector<Vehicle>> &predictions, double dt);
-
-  vector<Vehicle> change_lane_trajectory(string state,
-                                         map<int, vector<Vehicle>> &predictions, double dt);
-
-  void increment(double dt);
-
-  double position_at(double t);
+  vector<Vehicle> change_lane_trajectory(string state, map<int, vector<Vehicle>> &predictions, double dt);
 
   bool get_vehicle_behind(map<int, vector<Vehicle>> &predictions, int lane,
                           Vehicle &rVehicle);
@@ -48,8 +44,6 @@ public:
                          Vehicle &rVehicle);
 
   vector<Vehicle> generate_predictions(double horizon, double dt);
-
-  void realize_next_state(Vehicle &next_state);
 
 // TODO: constify these
   map<string, int> lane_direction = {{"LCL", -1}, {"LCR", 1}};
@@ -61,8 +55,9 @@ public:
   int lane;
   string state;
 
-  double s, s_dot, s_ddot;
-  double d, d_dot, d_ddot;
+  // Kinematic coefficients for s and d coord.
+  double s, vs, as;
+  double d, vd, ad;
 
   static vector<double> map_waypoints_x;
   static vector<double> map_waypoints_y;

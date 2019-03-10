@@ -153,11 +153,11 @@ int main() {
         double vx = sensed_vehicle[3];
         double vy = sensed_vehicle[4];
         double s = sensed_vehicle[5];
-        double s_dot = distance(0, 0, vx, vy); // TODO: maybe turn this into s and d components
-        double s_ddot = 0; // TODO: fill in
+        double vs = distance(0, 0, vx, vy); // TODO: maybe turn this into s and d components
+        double as = 0; // TODO: fill in
         double d = sensed_vehicle[6];
-        double d_dot = 0, d_ddot = 0;
-        Vehicle vehicle(s, s_dot, s_ddot, d, d_dot, d_ddot);
+        double vd = 0, ad = 0;
+        Vehicle vehicle(s, vs, as, d, vd, ad);
         vehicles[id] = vehicle; 
       }
       vector<double> next_x_vals;
@@ -185,9 +185,9 @@ int main() {
         }
         for (j = 1; j < trajectory.size(); j++) {
           i++;
-          ego.realize_next_state(trajectory[j]);
+          ego = trajectory[j];
           ego_history.push_back(ego);
-          std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", d: " << ego.d << ", v: " << ego.s_dot << ", a: " << ego.s_ddot << ", state: " << ego.state << std::endl;
+          std::cout << "lane: " << ego.lane << ", s: " << ego.s << ", d: " << ego.d << ", v: " << ego.vs << ", a: " << ego.as << ", state: " << ego.state << std::endl;
 
           auto xy = getXY(ego.s, ego.d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
           if (i%STEPS_PER_TRAJECTORY_POINT == 0) {
@@ -233,11 +233,11 @@ int main() {
   h.onConnection([&h, &ego, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
       std::cout << "Connected!!!" << std::endl;
       ego.s = 0;
-      ego.s_dot = 0;
-      ego.s_ddot = 0;
+      ego.vs = 0;
+      ego.as = 0;
       ego.d = 6.0;
-      ego.d_dot = 0;
-      ego.d_ddot = 0;
+      ego.vd = 0;
+      ego.ad = 0;
       ego_history.clear();
       });
 

@@ -59,7 +59,7 @@ float lane_speed(const Vehicle &ego, const map<int, vector<Vehicle>> &prediction
 		double d = kv.second[0].s - ego.s;
 		if (d > 0 && d < min_same_lane_distance && d < HORIZON) {
 			min_same_lane_distance = d;
-			speed = kv.second[0].s_dot;
+			speed = kv.second[0].vs;
 		}
 	}
   }

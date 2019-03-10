@@ -19,7 +19,8 @@ vector<double> Vehicle::map_waypoints_s = vector<double>{};
 // Initializes Vehicle
 Vehicle::Vehicle() {}
 
-Vehicle::Vehicle(double s, double s_dot, double s_ddot, double d, double d_dot, double d_ddot, string state) : s(d), s_dot(s_dot), s_ddot(s_ddot), d(d), d_dot(d_dot), d_ddot(d_ddot), state(state) {}
+Vehicle::Vehicle(double s, double vs, double as, double d, double vd, double ad, string state) :
+  s(s), vs(vs), as(as), d(d), vd(vd), ad(ad), state(state) {}
 
 Vehicle::~Vehicle() {}
 
@@ -101,7 +102,7 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
   // Gets next timestep kinematics (position, velocity, acceleration)
   //   for a given lane. Tries to choose the maximum velocity and acceleration,
   //   given other vehicle positions and accel/velocity constraints.
-  double max_velocity_accel_limit = this->max_acceleration * dt + this->s_dot;
+  double max_velocity_accel_limit = this->max_acceleration * dt + this->vs;
   double scaled_target_speed = projectOnWaypointPath(this->target_speed, this->s, this->d, Vehicle::map_waypoints_s, Vehicle::map_waypoints_x, Vehicle::map_waypoints_y);
   double new_position;
   double new_velocity;
@@ -112,10 +113,10 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
   {
     /*if (get_vehicle_behind(predictions, lane, vehicle_behind)) {
       // must travel at the speed of traffic, regardless of preferred buffer
-      new_velocity = std::min(std::min(vehicle_ahead.s_dot, max_velocity_accel_limit), this->target_speed);
+      new_velocity = std::min(std::min(vehicle_ahead.vs, max_velocity_accel_limit), this->target_speed);
       if(debug) std::cout << "vehicle ahead and behind. new velocity: " << new_velocity << std::endl;
     } else {*/
-    double max_velocity_in_front = (vehicle_ahead.s - this->s - this->preferred_buffer) + vehicle_ahead.s_dot - 0.5 * (this->s_ddot);
+    double max_velocity_in_front = (vehicle_ahead.s - this->s - this->preferred_buffer) + vehicle_ahead.vs - 0.5 * (this->as);
     new_velocity = std::min(std::min(max_velocity_in_front,
                                      max_velocity_accel_limit),
                             scaled_target_speed);
@@ -130,33 +131,42 @@ vector<double> Vehicle::get_kinematics(map<int, vector<Vehicle>> &predictions,
       std::cout << "clear path. new velocity: " << new_velocity << std::endl;
   }
   new_velocity = std::max(new_velocity, 0.0);
-  new_accel = (new_velocity - this->s_dot) / dt;                    // Equation: (v_1 - v_0)/t = acceleration
+  new_accel = (new_velocity - this->vs) / dt;                    // Equation: (v_1 - v_0)/t = acceleration
   new_accel = std::max(new_accel, -this->max_acceleration);         // cap the acceleration on the low end
-  new_position = this->s + 0.5 * (this->s_dot + new_velocity) * dt; // d' = d + (vi + vf) / 2 * t
-  //if(debug) std::cout << "old s: " << this->s << ", v: " << this->s_dot << ", a: " << this->s_ddot << std::endl;
+  new_position = this->s + 0.5 * (this->vs + new_velocity) * dt; // d' = d + (vi + vf) / 2 * t
+  //if(debug) std::cout << "old s: " << this->s << ", v: " << this->vs << ", a: " << this->as << std::endl;
   //if(debug) std::cout << "new s: " << new_position << ", v: " << new_velocity << ", a: " <<new_accel << std::endl;
   return {new_position, new_velocity, new_accel};
+}
+
+// at returns a vehicle with position and velocity updated based on a supplied time delta.
+Vehicle Vehicle::at(double dt) {
+  double new_s = this->s + this->vs*dt + 0.5*this->as*pow(dt, 2);
+  double new_vs = this->vs + this->as*dt;
+  double new_as = this->as;
+  double new_d = this->d + this->vd*dt + 0.5*this->ad*pow(dt, 2);
+  double new_vd = this->vd + this->ad*dt;
+  double new_ad = this->ad;
+  return Vehicle(new_s, new_vs, new_as, new_d, new_vd, new_ad, this->state);
 }
 
 vector<Vehicle> Vehicle::constant_speed_trajectory(double dt)
 {
   // Generate a constant speed trajectory.
-  double next_pos = position_at(dt);
-  vector<Vehicle> trajectory = {Vehicle(this->s, this->s_dot, this->s_ddot, this->d, this->d_dot, this->d_ddot, this->state),
-                                Vehicle(next_pos, this->s_dot, 0, this->d, this->d_dot, this->d_ddot, this->state)};
+  vector<Vehicle> trajectory = {*this, this->at(dt)};
   return trajectory;
 }
 
 vector<Vehicle> Vehicle::keep_lane_trajectory(map<int, vector<Vehicle>> &predictions, double dt)
 {
   // Generate a keep lane trajectory.
-  vector<Vehicle> trajectory = {Vehicle(this->s, this->s_dot, this->s_ddot, this->d, this->d_dot, this->d_ddot, this->state)};
+  vector<Vehicle> trajectory = {*this};
   vector<double> kinematics = get_kinematics(predictions, this->lane, dt, false);
   double new_s = kinematics[0];
-  double new_s_dot = kinematics[1];
-  double new_s_ddot = kinematics[2];
+  double new_vs = kinematics[1];
+  double new_as = kinematics[2];
   //std::cout << "keep lane s: " << new_s << ", v: " << new_v << ", a: " << new_a << std::endl;
-  auto next = Vehicle(new_s, new_s_dot, new_s_ddot, this->d, this->d_dot, this->d_ddot, "KL");
+  auto next = Vehicle(new_s, new_vs, new_as, this->d, this->vd, this->ad, "KL");
   next.target_speed = this->target_speed;
   next.lanes_available = this->lanes_available;
   next.max_acceleration = this->max_acceleration;
@@ -170,45 +180,37 @@ vector<Vehicle> Vehicle::change_lane_trajectory(string state,
 {
   // Generate a lane change trajectory.
   int new_lane = this->lane + this->lane_direction[state];
-  double new_d = (new_lane + 1) * 4 - 2;
+  double goal_d = (new_lane + 1) * 4 - 2;
   vector<Vehicle> trajectory;
   // TODO: Check if a lane change is possible (check if another vehicle occupies
   //   that spot).
   trajectory.push_back(*this);
 
-  const double TIME_HORIZON = 2;
-  auto start = vector<double>{this->d, 0, 0};
-  auto end = vector<double>{new_d, 0, 0};
+  const double TIME_HORIZON = 2; // TODO: perturb this
+  auto start = vector<double>{this->d, this->vd, this->ad};
+  auto end = vector<double>{goal_d, 0, 0};
   auto coeffs = jerk_min_trajectory(start, end, TIME_HORIZON);
 
-  double d_i = this->d, a_3(coeffs[3]), a_4(coeffs[4]), a_5(coeffs[5]);
+  double d_0 = this->d, vd_0 = this->vd, ad_0 = this->ad, jd_0(coeffs[3]), sd_0(coeffs[4]), cd_0(coeffs[5]);
   const int STEP_HORIZON = int(TIME_HORIZON * 50);
   for (int i = 1; i <= STEP_HORIZON; i++)
   {
+    // https://en.wikipedia.org/wiki/Pop_(physics)
     double t = dt * i;
-    double d = d_i + a_3 * pow(t, 3) + a_4 * pow(t, 4) + a_5 * pow(t, 5);
+    double d = d_0 + vd_0*t + (1.0/2.0)*ad_0*pow(t, 2) + (1.0/6.0)*jd_0*pow(t, 3) +
+      (1.0/24.0)*sd_0*pow(t, 4) + (1.0/120.0)*cd_0*pow(t, 5);
+    double vd = vd_0 + ad_0*t + (1.0/2.0)*jd_0*pow(t, 2) + (1.0/6.0)*sd_0*pow(t, 3) +
+      (1.0/24.0)*cd_0*pow(t, 4);
+    double ad = ad_0 + jd_0*t + (1.0/2.0)*sd_0*pow(t, 2) + (1.0/6.0)*cd_0*pow(t, 3);
 
     vector<double> kinematics = trajectory[i - 1].get_kinematics(predictions, new_lane, dt);
     double s = kinematics[0];
-    double s_dot = kinematics[1];
-    double s_ddot = 0;
-    auto next = Vehicle(s, s_dot, s_ddot, d, 0, 0, state);
-    next.target_speed = this->target_speed;
-    next.lanes_available = this->lanes_available;
-    next.max_acceleration = this->max_acceleration;
+    double vs = kinematics[1];
+    double as = 0;
+    auto next = Vehicle(s, vs, as, d, vd, ad, state);
     trajectory.push_back(next);
   }
   return trajectory;
-}
-
-void Vehicle::increment(double dt = 1)
-{
-  this->s = position_at(dt);
-}
-
-double Vehicle::position_at(double t)
-{
-  return this->s + this->s_dot * t + this->s_ddot * t * t / 2.0;
 }
 
 bool Vehicle::get_vehicle_behind(map<int, vector<Vehicle>> &predictions,
@@ -268,9 +270,7 @@ vector<Vehicle> Vehicle::generate_predictions(double horizon, double dt)
   int i = 1;
   while (next_s < horizon_s)
   {
-    next_s = position_at(i * dt);
-    next_v = position_at((i + 1) * dt) - next_s;
-    predictions.push_back(Vehicle(next_s, next_v, 0, this->d, 0, 0));
+    predictions.push_back(this->at(i * dt));
     i++;
     if (i > 10)
     {
@@ -279,15 +279,4 @@ vector<Vehicle> Vehicle::generate_predictions(double horizon, double dt)
   }
 
   return predictions;
-}
-
-void Vehicle::realize_next_state(Vehicle &next_state)
-{
-  this->state = next_state.state;
-  this->lane = next_state.lane;
-  this->d = next_state.d;
-  this->s = next_state.s;
-  this->s_dot = next_state.s_dot;
-  this->s_ddot = next_state.s_ddot;
-  //std::cout << "realizing new state -- s: " << this->s << ", v: " << this->s_dot << ", a: " << this->s_ddot << std::endl;
 }
