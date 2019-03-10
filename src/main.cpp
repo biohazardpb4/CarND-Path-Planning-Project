@@ -166,10 +166,10 @@ int main() {
 
       // generate trajectory
       map<int, vector<Vehicle>> predictions;
+      for (auto& kv : vehicles) {
+        predictions[kv.first] = kv.second.generate_predictions(TIME_HORIZON, DT);
+      }
       for (int i = 0; i < STEP_HORIZON;) {
-        for (auto& kv : vehicles) {
-          predictions[kv.first] = kv.second.generate_predictions(TIME_HORIZON, DT);
-        }
         vector<Vehicle> trajectory;
         int j;
         if (unprocessed_ego.size() > 0) {
