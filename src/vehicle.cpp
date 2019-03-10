@@ -40,8 +40,15 @@ vector<Vehicle> Vehicle::choose_next_trajectory(map<int, vector<Vehicle>> &predi
    *   vehicle state.
    */
   vector<vector<Vehicle>> potential_trajectories;
-  for (auto const &potential_trajectory : constant_speed_trajectories(dt)) {
+  bool skip_const = false;
+  for (auto const &potential_trajectory : slow_down_for_ahead_trajectories(predictions, dt)) {
     potential_trajectories.push_back(potential_trajectory);
+    skip_const = true;
+  }
+  if (!skip_const) { // HACK!! REMOVE IMMEDIATELY
+    for (auto const &potential_trajectory : constant_speed_trajectories(dt)) {
+      potential_trajectories.push_back(potential_trajectory);
+    }
   }
   // TODO: add other potential trajectories
 
@@ -114,31 +121,46 @@ vector<vector<Vehicle>> Vehicle::constant_speed_trajectories(double dt)
   //auto ego = *this;
   //std::cout << "vehicle -- lane: " << ego.lane() << ", s: " << ego.s << ", vs: " << ego.vs << ", as: " << ego.as << ", d: " << ego.d << ", vd: " << ego.vd << ", ad: " << ego.ad << std::endl;
   // Generate a constant speed trajectory.
-  vector<vector<Vehicle>> trajectory = {{*this, this->at(dt)}};
+  vector<Vehicle> single_step = {*this, this->at(dt)};
+  vector<Vehicle> until_horizon = {*this};
+  for (double t = 0; t < 2.0; t+=dt) {
+    until_horizon.push_back(this->at(t));
+  }
+  vector<vector<Vehicle>> trajectory = {until_horizon, single_step};
   return trajectory;
 }
 
-// vector<Vehicle> Vehicle::keep_lane_trajectory(map<int, vector<Vehicle>> &predictions, double dt)
-// {
-//   // Generate a keep lane trajectory.
-//   vector<Vehicle> trajectory = {*this};
-//   vector<double> kinematics = get_kinematics(predictions, this->lane, dt, false);
-//   double new_s = kinematics[0];
-//   double new_vs = kinematics[1];
-//   double new_as = kinematics[2];
-//   //std::cout << "keep lane s: " << new_s << ", v: " << new_v << ", a: " << new_a << std::endl;
-//   auto next = Vehicle(new_s, new_vs, new_as, this->d, 0, 0, "KL");
-//   trajectory.push_back(next);
-//   // const double TIME_HORIZON = 2; // TODO: perturb this
-//   // const int STEP_HORIZON = int(TIME_HORIZON/dt);
-//   // for (int i = 0; i <= STEP_HORIZON; i++)
-//   // {
-//   //   double t = dt * i;
-//   //   trajectory.push_back(next.at(t));
-//   // }
+vector<vector<Vehicle>> Vehicle::slow_down_for_ahead_trajectories(map<int, vector<Vehicle>> &predictions, double dt) {
+  vector<vector<Vehicle>> trajectories;
+  Vehicle ahead;
+  if (this->get_vehicle_ahead(predictions, this->lane(), ahead)) {
+    // Min jerk trajectory to reach vehicle ahead less buffer.
+    vector<Vehicle> trajectory;
+    trajectory.push_back(*this);
+    auto start = vector<double>{this->s, this->vs, this->as};
+    // Predict where the vehicle in front of us will be in 2s.
+    const double TIME_HORIZON = 1; // TODO: perturb this
+    Vehicle predicted_ahead = ahead.at(TIME_HORIZON);
+    auto end = vector<double>{predicted_ahead.s - this->preferred_buffer, predicted_ahead.vs, predicted_ahead.as};
+    auto coeffs = jerk_min_trajectory(start, end, TIME_HORIZON);
 
-//   return trajectory;
-// }
+    double s_0 = this->s, vs_0 = this->vs, as_0 = this->as, js_0(coeffs[3]), ss_0(coeffs[4]), cs_0(coeffs[5]);
+    const int STEP_HORIZON = int(TIME_HORIZON/dt);
+    for (double t; t < TIME_HORIZON; t+=dt)
+    {
+      // https://en.wikipedia.org/wiki/Pop_(physics)
+      // Note: our j, s, and c coefficients use a different scale (not sure why).
+      double s = s_0 + vs_0*t + 0.5*as_0*pow(t, 2) + js_0*pow(t, 3) + ss_0*pow(t, 4) + cs_0*pow(t, 5);
+      double vs = vs_0 + as_0*t + 3.0*js_0*pow(t, 2) + 4.0*ss_0*pow(t, 3) + 5.0*cs_0*pow(t, 4);
+      double as = as_0 + 6.0*js_0*t + 12.0*ss_0*pow(t, 2) + 20.0*cs_0*pow(t, 3);
+
+      auto next = Vehicle(s, vs, as, this->d, this->vd, this->ad);
+      trajectory.push_back(next);
+    }
+    trajectories.push_back(trajectory);
+  }
+  return trajectories;
+}
 
 // vector<Vehicle> Vehicle::change_lane_trajectory(string state,
 //                                                 map<int, vector<Vehicle>> &predictions,
@@ -169,6 +191,7 @@ vector<vector<Vehicle>> Vehicle::constant_speed_trajectories(double dt)
 //     double vd = vd_0 + ad_0*t + (1.0/2.0)*jd_0*pow(t, 2) + (1.0/6.0)*sd_0*pow(t, 3) +
 //       (1.0/24.0)*cd_0*pow(t, 4);
 //     double ad = ad_0 + jd_0*t + (1.0/2.0)*sd_0*pow(t, 2) + (1.0/6.0)*cd_0*pow(t, 3);
+//     // UPDATE THESE!!
 
 //     vector<double> kinematics = trajectory[i - 1].get_kinematics(predictions, new_lane, dt);
 //     double s = kinematics[0];
@@ -202,27 +225,26 @@ vector<vector<Vehicle>> Vehicle::constant_speed_trajectories(double dt)
 //   return found_vehicle;
 // }
 
-// bool Vehicle::get_vehicle_ahead(map<int, vector<Vehicle>> &predictions,
-//                                 int lane, Vehicle &rVehicle)
-// {
-//   // Returns a true if a vehicle is found ahead of the current vehicle, false
-//   //   otherwise. The passed reference rVehicle is updated if a vehicle is found.
-//   bool found_vehicle = false;
-//   double min_s = 100000.0; // big number
-//   for (map<int, vector<Vehicle>>::iterator it = predictions.begin();
-//        it != predictions.end(); ++it)
-//   {
-//     Vehicle temp_vehicle = it->second[0];
-//     if (temp_vehicle.lane == this->lane && temp_vehicle.s > this->s)
-//     {
-//       min_s = temp_vehicle.s;
-//       rVehicle = temp_vehicle;
-//       found_vehicle = true;
-//     }
-//   }
+bool Vehicle::get_vehicle_ahead(map<int, vector<Vehicle>> &predictions,
+                                int lane, Vehicle &rVehicle)
+{
+  // Returns a true if a vehicle is found ahead of the current vehicle, false
+  //   otherwise. The passed reference rVehicle is updated if a vehicle is found.
+  bool found_vehicle = false;
+  double min_s = this->s + this->target_speed*2.0; // Don't return vehicles we'll never reach in 2s.
+  for (map<int, vector<Vehicle>>::iterator it = predictions.begin(); it != predictions.end(); ++it)
+  {
+    Vehicle temp_vehicle = it->second[0];
+    if (temp_vehicle.lane() == this->lane() && temp_vehicle.s > this->s && temp_vehicle.s < min_s)
+    {
+      found_vehicle = true;
+      min_s = temp_vehicle.s;
+      rVehicle = temp_vehicle;
+    }
+  }
 
-//   return found_vehicle;
-// }
+  return found_vehicle;
+}
 
 vector<Vehicle> Vehicle::generate_predictions(double horizon, double dt)
 {

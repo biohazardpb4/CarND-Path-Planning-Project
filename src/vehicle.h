@@ -29,14 +29,13 @@ public:
 
   // Trajectories
   vector<vector<Vehicle>> constant_speed_trajectories(double dt);
-  // vector<vector<Vehicle>> keep_lane_trajectories(map<int, vector<Vehicle>> &predictions, double dt);
+  vector<vector<Vehicle>> slow_down_for_ahead_trajectories(map<int, vector<Vehicle>> &predictions, double dt);
   // vector<vector<Vehicle>> change_lane_trajectories(string state, map<int, vector<Vehicle>> &predictions, double dt);
 
   // bool get_vehicle_behind(map<int, vector<Vehicle>> &predictions, int lane,
   //                         Vehicle &rVehicle);
 
-  // bool get_vehicle_ahead(map<int, vector<Vehicle>> &predictions, int lane,
-  //                        Vehicle &rVehicle);
+  bool get_vehicle_ahead(map<int, vector<Vehicle>> &predictions, int lane, Vehicle &rVehicle);
 
   vector<Vehicle> generate_predictions(double horizon, double dt);
 
@@ -45,7 +44,7 @@ public:
   double target_speed = mph2mps(50);
   double max_acceleration = 10;
   int lanes_available = 3;
-  int preferred_buffer = 6;
+  int preferred_buffer = 10;
 
   // Kinematic coefficients for s and d coord.
   double s, vs, as;
