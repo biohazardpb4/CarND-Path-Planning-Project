@@ -49,7 +49,7 @@ public:
   double target_speed = mph2mps(50);
   double max_acceleration = 10;
   int lanes_available = 3;
-  int preferred_buffer = 10;
+  int preferred_buffer = 12;
 
   // Kinematic coefficients for s and d coord.
   double s, vs, as;

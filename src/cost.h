@@ -13,6 +13,10 @@ float calculate_cost(const Vehicle &ego,
                      const map<int, Trajectory<Vehicle>> &predictions, 
                      const Trajectory<Vehicle> &trajectory);
 
+float off_lane_center_cost(const Vehicle &ego, 
+                        const Trajectory<Vehicle> &trajectory, 
+                        const map<int, Trajectory<Vehicle>> &predictions);
+
 float inefficiency_cost(const Vehicle &ego, 
                         const Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions);

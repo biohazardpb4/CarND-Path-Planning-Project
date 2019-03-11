@@ -12,12 +12,26 @@
 using std::string;
 using std::vector;
 
+const float LANE_CENTER = 0.1;
 const float EFFICIENCY = 0.2;
 const float MAX_JERK = 0.9;
 const float MAX_ACCELERATION = 0.85;
 const float MAX_VELOCITY = 0.8;
 const float STAY_ON_ROAD = 0.95;
 const float COLLISION = 1.0;
+
+float off_lane_center_cost(const Vehicle &ego, 
+                        const Trajectory<Vehicle> &trajectory, 
+                        const map<int, Trajectory<Vehicle>> &predictions) {
+  // Cost becomes higher for trajectories which stray farther away from the center.
+  double d = 0;
+  for (const auto& step : trajectory.path) {
+    d += distance(step.d, 0, step.lane()*4.0-2.0, 0);
+  }
+
+  return 1.0 - exp(-d);
+}
+
 
 float inefficiency_cost(const Vehicle &ego, 
                         const Trajectory<Vehicle> &trajectory, 
@@ -77,7 +91,7 @@ float collision_cost(const Vehicle &ego,
   // Cost becomes higher when collisions occur
   float nearest = nearest_vehicle(trajectory, predictions);
   std::cout << "nearest vehicle: " << nearest << std::endl;
-  return nearest < 3 ? 1 : 0;
+  return nearest < 4 ? 1 : 0;
 }
 
 float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predictions, const int lane) {
@@ -117,8 +131,10 @@ float calculate_cost(const Vehicle &ego,
   // Add additional cost functions here.
   vector<std::function<float(const Vehicle &, const Trajectory<Vehicle> &, 
                              const map<int, Trajectory<Vehicle>> &)
-    >> cf_list = {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost, collision_cost, stay_on_road_cost};
-  vector<float> weight_list = {EFFICIENCY, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY, COLLISION, STAY_ON_ROAD};
+    >> cf_list = {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost,
+      collision_cost, stay_on_road_cost, off_lane_center_cost};
+  vector<float> weight_list = {EFFICIENCY, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY,
+    COLLISION, STAY_ON_ROAD, LANE_CENTER};
     
   for (int i = 0; i < cf_list.size(); ++i) {
     float new_cost = weight_list[i]*cf_list[i](ego, trajectory, predictions);
