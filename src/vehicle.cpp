@@ -118,12 +118,16 @@ Vehicle Vehicle::at(double dt) const {
 
 vector<Trajectory<Vehicle>> Vehicle::target_speed_trajectories(double dt)
 {
-  double TIME_HORIZON = 2;
-  auto start_s = vector<double>{this->s, this->vs, this->as};
-  auto end_s = vector<double>{this->s+this->target_speed*TIME_HORIZON*0.95, this->target_speed, 0};
-  auto start_d = vector<double>{this->d, this->vd, this->ad};
-  auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
-  return vector<Trajectory<Vehicle>>{this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON)};
+  vector<Trajectory<Vehicle>> trajectories;
+  // Generates options ranging from 1 to 5 seconds to get up to speed.
+  for (int i = 1; i < 5; i++) {
+    auto start_s = vector<double>{this->s, this->vs, this->as};
+    auto end_s = vector<double>{this->s+this->target_speed*i, this->target_speed, 0};
+    auto start_d = vector<double>{this->d, this->vd, this->ad};
+    auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
+    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, i));
+  }
+  return trajectories;
 }
 
 vector<Trajectory<Vehicle>> Vehicle::slow_down_for_ahead_trajectories(
