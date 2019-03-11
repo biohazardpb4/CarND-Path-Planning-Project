@@ -77,7 +77,7 @@ float collision_cost(const Vehicle &ego,
   // Cost becomes higher when collisions occur
   float nearest = nearest_vehicle(trajectory, predictions);
   std::cout << "nearest vehicle: " << nearest << std::endl;
-  return nearest < 2 ? 1 : 0;
+  return nearest < 3 ? 1 : 0;
 }
 
 float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predictions, const int lane) {

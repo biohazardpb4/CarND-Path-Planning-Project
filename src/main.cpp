@@ -84,8 +84,7 @@ int main() {
   }
 
   double d = 6.0;
-  double vs = mph2mps(45);
-  Vehicle ego(0, vs, 0, d, 0, 0); // Also initialized in onConnected.
+  Vehicle ego(0, 0, 0, d, 0, 0); // Also initialized in onConnected.
   vector<Vehicle> ego_history;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
@@ -182,7 +181,7 @@ int main() {
   h.onConnection([&h, &ego, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
       std::cout << "Connected!!!" << std::endl;
       ego.s = 0;
-      ego.vs = mph2mps(45);
+      ego.vs = 0;
       ego.as = 0;
       ego.d = 6.0;
       ego.vd = 0;
