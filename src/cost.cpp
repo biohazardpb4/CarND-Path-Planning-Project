@@ -16,6 +16,7 @@ const float EFFICIENCY = 0.2;
 const float MAX_JERK = 0.9;
 const float MAX_ACCELERATION = 0.85;
 const float MAX_VELOCITY = 0.8;
+const float STAY_ON_ROAD = 0.95;
 const float COLLISION = 1.0;
 
 float inefficiency_cost(const Vehicle &ego, 
@@ -96,6 +97,18 @@ float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predic
   return speed;
 }
 
+float stay_on_road_cost(const Vehicle &ego,
+		     const Trajectory<Vehicle> &trajectory,
+		     const map<int, Trajectory<Vehicle>> &predictions) {
+  // Cost becomes higher if the car goes off of the road
+  for (const auto& step : trajectory.path) {
+    if (step.d < 0 || step.d > step.lanes_available*4) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 float calculate_cost(const Vehicle &ego, 
                      const map<int, Trajectory<Vehicle>> &predictions, 
                      const Trajectory<Vehicle> &trajectory) {
@@ -104,8 +117,8 @@ float calculate_cost(const Vehicle &ego,
   // Add additional cost functions here.
   vector<std::function<float(const Vehicle &, const Trajectory<Vehicle> &, 
                              const map<int, Trajectory<Vehicle>> &)
-    >> cf_list = {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost, collision_cost};
-  vector<float> weight_list = {EFFICIENCY, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY, COLLISION};
+    >> cf_list = {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost, collision_cost, stay_on_road_cost};
+  vector<float> weight_list = {EFFICIENCY, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY, COLLISION, STAY_ON_ROAD};
     
   for (int i = 0; i < cf_list.size(); ++i) {
     float new_cost = weight_list[i]*cf_list[i](ego, trajectory, predictions);

@@ -29,8 +29,11 @@ float max_velocity_cost(const Vehicle &ego,
 		     const Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions);
 
-
 float collision_cost(const Vehicle &ego,
+		     const Trajectory<Vehicle> &trajectory,
+		     const map<int, Trajectory<Vehicle>> &predictions);
+
+float stay_on_road_cost(const Vehicle &ego,
 		     const Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions);
 

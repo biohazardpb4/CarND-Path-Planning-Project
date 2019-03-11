@@ -29,9 +29,13 @@ public:
   Vehicle at(double dt) const;
 
   // Trajectories
-  vector<Trajectory<Vehicle>> constant_speed_trajectories(double dt);
+  vector<Trajectory<Vehicle>> target_speed_trajectories(double dt);
   vector<Trajectory<Vehicle>> slow_down_for_ahead_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
-  // vector<Trajectory<Vehicle>> change_lane_trajectories(string state, map<int, Trajectory<Vehicle>> &predictions, double dt);
+  vector<Trajectory<Vehicle>> change_lane_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
+
+  Trajectory<Vehicle> generate_trajectory(
+    vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
+    double time_horizon);
 
   // bool get_vehicle_behind(map<int, Trajectory<Vehicle>> &predictions, int lane,
   //                         Vehicle &rVehicle);

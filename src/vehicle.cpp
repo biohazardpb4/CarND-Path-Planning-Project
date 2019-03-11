@@ -44,7 +44,10 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
   for (auto const &potential_trajectory : slow_down_for_ahead_trajectories(predictions, dt)) {
     potential_trajectories.push_back(potential_trajectory);
   }
-  for (auto const &potential_trajectory : constant_speed_trajectories(dt)) {
+  for (auto const &potential_trajectory : change_lane_trajectories(predictions, dt)) {
+    potential_trajectories.push_back(potential_trajectory);
+  }
+  for (auto const &potential_trajectory : target_speed_trajectories(dt)) {
     potential_trajectories.push_back(potential_trajectory);
   }
   // TODO: add other potential trajectories
@@ -113,89 +116,64 @@ Vehicle Vehicle::at(double dt) const {
   return Vehicle(new_s, new_vs, new_as, new_d, new_vd, new_ad);
 }
 
-vector<Trajectory<Vehicle>> Vehicle::constant_speed_trajectories(double dt)
+vector<Trajectory<Vehicle>> Vehicle::target_speed_trajectories(double dt)
 {
-  // Generate a constant speed trajectory.
-  vector<Vehicle> until_horizon = {*this};
-  for (double t = 0; t < 2.0; t+=dt) {
-    until_horizon.push_back(this->at(t));
-  }
-  vector<Trajectory<Vehicle>> trajectory = {Trajectory<Vehicle>(until_horizon)};
-  return trajectory;
+  double TIME_HORIZON = 2;
+  auto start_s = vector<double>{this->s, this->vs, this->as};
+  auto end_s = vector<double>{this->s+this->target_speed*TIME_HORIZON*0.95, this->target_speed, 0};
+  auto start_d = vector<double>{this->d, this->vd, this->ad};
+  auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
+  return vector<Trajectory<Vehicle>>{this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON)};
 }
 
-vector<Trajectory<Vehicle>> Vehicle::slow_down_for_ahead_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt) {
+vector<Trajectory<Vehicle>> Vehicle::slow_down_for_ahead_trajectories(
+    map<int, Trajectory<Vehicle>> &predictions, double dt) {
   vector<Trajectory<Vehicle>> trajectories;
   Vehicle ahead;
   if (this->get_vehicle_ahead(predictions, this->lane(), ahead)) {
-    // Min jerk trajectory to reach vehicle ahead less buffer.
-    vector<Vehicle> trajectory;
-    trajectory.push_back(*this);
-    auto start = vector<double>{this->s, this->vs, this->as};
-    // Predict where the vehicle in front of us will be in 2s.
     const double TIME_HORIZON = 1; // TODO: perturb this
+    // Min jerk trajectory to reach vehicle ahead less buffer.
+    auto start_s = vector<double>{this->s, this->vs, this->as};
+    // Predict where the vehicle in front of us will be in 2s.
     Vehicle predicted_ahead = ahead.at(TIME_HORIZON);
-    auto end = vector<double>{predicted_ahead.s - this->preferred_buffer, predicted_ahead.vs, predicted_ahead.as};
-    auto coeffs = jerk_min_trajectory(start, end, TIME_HORIZON);
-
-    double s_0 = this->s, vs_0 = this->vs, as_0 = this->as, js_0(coeffs[3]), ss_0(coeffs[4]), cs_0(coeffs[5]);
-    const int STEP_HORIZON = int(TIME_HORIZON/dt);
-    for (double t; t < TIME_HORIZON; t+=dt)
-    {
-      // https://en.wikipedia.org/wiki/Pop_(physics)
-      // Note: our j, s, and c coefficients use a different scale (not sure why).
-      double s = s_0 + vs_0*t + 0.5*as_0*pow(t, 2) + js_0*pow(t, 3) + ss_0*pow(t, 4) + cs_0*pow(t, 5);
-      double vs = vs_0 + as_0*t + 3.0*js_0*pow(t, 2) + 4.0*ss_0*pow(t, 3) + 5.0*cs_0*pow(t, 4);
-      double as = as_0 + 6.0*js_0*t + 12.0*ss_0*pow(t, 2) + 20.0*cs_0*pow(t, 3);
-
-      auto next = Vehicle(s, vs, as, this->d, this->vd, this->ad);
-      trajectory.push_back(next);
-    }
-    trajectories.push_back(Trajectory<Vehicle>(trajectory));
+    auto end_s = vector<double>{predicted_ahead.s - this->preferred_buffer, predicted_ahead.vs, predicted_ahead.as};
+    auto start_d = vector<double>{this->d, this->vd, this->ad};
+    auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
+    
+    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON));
   }
   return trajectories;
 }
 
-// Trajectory<Vehicle> Vehicle::change_lane_trajectory(string state,
-//                                                 map<int, Trajectory<Vehicle>> &predictions,
-//                                                 double dt)
-// {
-//   // Generate a lane change trajectory.
-//   int new_lane = this->lane + this->lane_direction[state];
+vector<Trajectory<Vehicle>> Vehicle::change_lane_trajectories(
+  map<int, Trajectory<Vehicle>> &predictions, double dt)
+{
+  vector<Trajectory<Vehicle>> trajectories;
+  // TODO: use get_vehicle_ahead to limit goal parameters
+  // Vehicle ahead;
+  // if (this->get_vehicle_ahead(predictions, this->lane(), ahead)) {
 
-//   double goal_d = (new_lane + 1) * 4 - 2;
-//   Trajectory<Vehicle> trajectory;
-//   // TODO: Check if a lane change is possible (check if another vehicle occupies
-//   //   that spot).
-//   trajectory.push_back(*this);
+  const double TIME_HORIZON = 1.5; // TODO: perturb this
+  // Min jerk trajectory to reach target vs.
+  auto start_s = vector<double>{this->s, this->vs, this->as};
+  auto end_s = vector<double>{this->s+this->target_speed*TIME_HORIZON*0.95, this->target_speed, 0};
 
-//   const double TIME_HORIZON = 2; // TODO: perturb this
-//   auto start = vector<double>{this->d, this->vd, this->ad};
-//   auto end = vector<double>{goal_d, 0, 0};
-//   auto coeffs = jerk_min_trajectory(start, end, TIME_HORIZON);
+  // Min jerk left lane change.
+  if (this->lane() > 0) {
+    auto start_d = vector<double>{this->d, this->vd, this->ad};
+    auto end_d = vector<double>{(this->lane()-1)*4.0 + 2.0, 0, 0};
+    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON));
+  }
 
-//   double d_0 = this->d, vd_0 = this->vd, ad_0 = this->ad, jd_0(coeffs[3]), sd_0(coeffs[4]), cd_0(coeffs[5]);
-//   const int STEP_HORIZON = int(TIME_HORIZON/dt);
-//   for (int i = 1; i <= STEP_HORIZON; i++)
-//   {
-//     // https://en.wikipedia.org/wiki/Pop_(physics)
-//     double t = dt * i;
-//     double d = d_0 + vd_0*t + (1.0/2.0)*ad_0*pow(t, 2) + (1.0/6.0)*jd_0*pow(t, 3) +
-//       (1.0/24.0)*sd_0*pow(t, 4) + (1.0/120.0)*cd_0*pow(t, 5);
-//     double vd = vd_0 + ad_0*t + (1.0/2.0)*jd_0*pow(t, 2) + (1.0/6.0)*sd_0*pow(t, 3) +
-//       (1.0/24.0)*cd_0*pow(t, 4);
-//     double ad = ad_0 + jd_0*t + (1.0/2.0)*sd_0*pow(t, 2) + (1.0/6.0)*cd_0*pow(t, 3);
-//     // UPDATE THESE!!
-
-//     vector<double> kinematics = trajectory[i - 1].get_kinematics(predictions, new_lane, dt);
-//     double s = kinematics[0];
-//     double vs = kinematics[1];
-//     double as = 0;
-//     auto next = Vehicle(s, vs, as, d, vd, ad, state);
-//     trajectory.push_back(next);
-//   }
-//   return trajectory;
-// }
+  // Min jerk right lane change.
+  if (this->lane() < this->lanes_available-1) {
+    auto start_d = vector<double>{this->d, this->vd, this->ad};
+    auto end_d = vector<double>{(this->lane()+1)*4.0 + 2.0, 0, 0};
+    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON));
+  }
+  
+  return trajectories;
+}
 
 // bool Vehicle::get_vehicle_behind(map<int, Trajectory<Vehicle>> &predictions,
 //                                  int lane, Vehicle &rVehicle)
@@ -238,6 +216,37 @@ bool Vehicle::get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions,
   }
 
   return found_vehicle;
+}
+
+Trajectory<Vehicle> Vehicle::generate_trajectory(
+  vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
+  double time_horizon) {
+  double DT = 0.02;
+  // Min jerk trajectory to reach target.
+  auto s_coeffs = jerk_min_trajectory(start_s, end_s, time_horizon);
+  double s_0 = this->s, vs_0 = this->vs, as_0 = this->as, js_0(s_coeffs[3]), ss_0(s_coeffs[4]), cs_0(s_coeffs[5]);
+
+  auto d_coeffs = jerk_min_trajectory(start_d, end_d, time_horizon);
+  double d_0 = this->d, vd_0 = this->vd, ad_0 = this->ad, jd_0(d_coeffs[3]), sd_0(d_coeffs[4]), cd_0(d_coeffs[5]);
+
+  vector<Vehicle> trajectory;
+  trajectory.push_back(*this);
+  for (double t=0; t < time_horizon; t+=DT)
+  {
+    // https://en.wikipedia.org/wiki/Pop_(physics)
+    // Note: our j, s, and c coefficients use a different scale (not sure why).
+    double s = s_0 + vs_0*t + 0.5*as_0*pow(t, 2) + js_0*pow(t, 3) + ss_0*pow(t, 4) + cs_0*pow(t, 5);
+    double vs = vs_0 + as_0*t + 3.0*js_0*pow(t, 2) + 4.0*ss_0*pow(t, 3) + 5.0*cs_0*pow(t, 4);
+    double as = as_0 + 6.0*js_0*t + 12.0*ss_0*pow(t, 2) + 20.0*cs_0*pow(t, 3);
+
+    double d = d_0 + vd_0*t + 0.5*ad_0*pow(t, 2) + jd_0*pow(t, 3) + sd_0*pow(t, 4) + cd_0*pow(t, 5);
+    double vd = vd_0 + ad_0*t + 3.0*jd_0*pow(t, 2) + 4.0*sd_0*pow(t, 3) + 5.0*cd_0*pow(t, 4);
+    double ad = ad_0 + 6.0*jd_0*t + 12.0*sd_0*pow(t, 2) + 20.0*cd_0*pow(t, 3);
+
+    auto next = Vehicle(s, vs, as, d, vd, ad);
+    trajectory.push_back(next);
+  }
+  return trajectory;
 }
 
 Trajectory<Vehicle> Vehicle::generate_predictions(double horizon, double dt)
