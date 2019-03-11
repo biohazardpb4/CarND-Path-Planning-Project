@@ -41,10 +41,10 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
    *   vehicle state.
    */
   vector<Trajectory<Vehicle>> potential_trajectories;
-  for (auto const &potential_trajectory : constant_speed_trajectories(dt)) {
+  for (auto const &potential_trajectory : slow_down_for_ahead_trajectories(predictions, dt)) {
     potential_trajectories.push_back(potential_trajectory);
   }
-  for (auto const &potential_trajectory : slow_down_for_ahead_trajectories(predictions, dt)) {
+  for (auto const &potential_trajectory : constant_speed_trajectories(dt)) {
     potential_trajectories.push_back(potential_trajectory);
   }
   // TODO: add other potential trajectories
@@ -228,12 +228,12 @@ bool Vehicle::get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions,
   double min_s = this->s + this->target_speed*2.0; // Don't return vehicles we'll never reach in 2s.
   for (map<int, Trajectory<Vehicle>>::iterator it = predictions.begin(); it != predictions.end(); ++it)
   {
-    Vehicle temp_vehicle = it->second.path[0];
-    if (temp_vehicle.lane() == this->lane() && temp_vehicle.s > this->s && temp_vehicle.s < min_s)
+    Vehicle other = it->second.path[0];
+    if (other.lane() == this->lane() && other.s > this->s && other.s < min_s)
     {
       found_vehicle = true;
-      min_s = temp_vehicle.s;
-      rVehicle = temp_vehicle;
+      min_s = other.s;
+      rVehicle = other;
     }
   }
 

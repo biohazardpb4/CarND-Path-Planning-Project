@@ -13,8 +13,9 @@ using std::string;
 using std::vector;
 
 const float EFFICIENCY = 0.2;
-const float MAX_ACCELERATION = 0.8;
 const float MAX_JERK = 0.9;
+const float MAX_ACCELERATION = 0.85;
+const float MAX_VELOCITY = 0.8;
 const float COLLISION = 1.0;
 
 float inefficiency_cost(const Vehicle &ego, 
@@ -28,17 +29,44 @@ float inefficiency_cost(const Vehicle &ego,
   return cost;
 }
 
-float max_accel_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
-                        const map<int, Trajectory<Vehicle>> &predictions) {
-  // Cost becomes higher for trajectories with > 10 m/s^2 acceleration
-  return 0;
-}
-
 float max_jerk_cost(const Vehicle &ego, 
                         const Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with > 10 m/s^3 jerk
+  if (trajectory.path.size() < 2) {
+    return 0;
+  }
+  for (int i = 0; i < trajectory.path.size()-1; i++) {
+    double jerk = distance(trajectory.path[i].as, trajectory.path[i].ad,
+      trajectory.path[i+1].as, trajectory.path[i+1].ad);
+    if (jerk > 10) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+float max_accel_cost(const Vehicle &ego, 
+                        const Trajectory<Vehicle> &trajectory, 
+                        const map<int, Trajectory<Vehicle>> &predictions) {
+  // Cost becomes higher for trajectories with > 10 m/s^2 acceleration
+  for (const auto& step : trajectory.path) {
+    if (distance(0, 0, step.ad, step.as) > 10) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+float max_velocity_cost(const Vehicle &ego, 
+                        const Trajectory<Vehicle> &trajectory, 
+                        const map<int, Trajectory<Vehicle>> &predictions) {
+  // Cost becomes higher for trajectories with > 50 mph velocity
+  for (const auto& step : trajectory.path) {
+    if (distance(0, 0, step.vd, step.vs) > step.target_speed) {
+      return 1;
+    }
+  }
   return 0;
 }
 
@@ -57,13 +85,13 @@ float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predic
   double min_same_lane_distance = 1000; // large number
   double speed = 1000; // large number
   for (const auto& kv : predictions) {
-	if (kv.second.path[0].lane() == lane) {
-		double d = kv.second.path[0].s - ego.s;
-		if (d > 0 && d < min_same_lane_distance && d < HORIZON) {
-			min_same_lane_distance = d;
-			speed = kv.second.path[0].vs;
-		}
-	}
+    if (kv.second.path[0].lane() == lane) {
+      double d = kv.second.path[0].s - ego.s;
+      if (d > 0 && d < min_same_lane_distance && d < HORIZON) {
+        min_same_lane_distance = d;
+        speed = kv.second.path[0].vs;
+      }
+    }
   }
   return speed;
 }
@@ -76,8 +104,8 @@ float calculate_cost(const Vehicle &ego,
   // Add additional cost functions here.
   vector<std::function<float(const Vehicle &, const Trajectory<Vehicle> &, 
                              const map<int, Trajectory<Vehicle>> &)
-    >> cf_list = {inefficiency_cost, max_accel_cost, max_jerk_cost, collision_cost};
-  vector<float> weight_list = {EFFICIENCY, MAX_ACCELERATION, MAX_JERK, COLLISION};
+    >> cf_list = {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost, collision_cost};
+  vector<float> weight_list = {EFFICIENCY, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY, COLLISION};
     
   for (int i = 0; i < cf_list.size(); ++i) {
     float new_cost = weight_list[i]*cf_list[i](ego, trajectory, predictions);
