@@ -90,7 +90,7 @@ float collision_cost(const Vehicle &ego,
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher when collisions occur
   float nearest = nearest_vehicle(trajectory, predictions);
-  std::cout << "nearest vehicle: " << nearest << std::endl;
+  // std::cout << "nearest vehicle: " << nearest << std::endl;
   return nearest < 4 ? 1 : 0;
 }
 
@@ -125,21 +125,25 @@ float stay_on_road_cost(const Vehicle &ego,
 
 float calculate_cost(const Vehicle &ego, 
                      const map<int, Trajectory<Vehicle>> &predictions, 
-                     const Trajectory<Vehicle> &trajectory) {
+                     Trajectory<Vehicle> &trajectory) {
   float cost = 0.0;
 
   // Add additional cost functions here.
+  vector<string> label_list{"inefficiency", "max_jerk", "max_accel", "max_velocity",
+    "collision", "stay_on_road", "off_lane_center"};
   vector<std::function<float(const Vehicle &, const Trajectory<Vehicle> &, 
-                             const map<int, Trajectory<Vehicle>> &)
-    >> cf_list = {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost,
-      collision_cost, stay_on_road_cost, off_lane_center_cost};
+    const map<int, Trajectory<Vehicle>> &)>> cf_list =
+    {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost,
+    collision_cost, stay_on_road_cost, off_lane_center_cost};
   vector<float> weight_list = {EFFICIENCY, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY,
     COLLISION, STAY_ON_ROAD, LANE_CENTER};
     
   for (int i = 0; i < cf_list.size(); ++i) {
     float new_cost = weight_list[i]*cf_list[i](ego, trajectory, predictions);
+    trajectory.individual_costs[label_list[i]] = new_cost;
     cost += new_cost;
   }
+  trajectory.total_cost = cost;
 
   return cost;
 }

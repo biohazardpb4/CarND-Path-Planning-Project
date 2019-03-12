@@ -34,6 +34,7 @@ public:
   vector<Trajectory<Vehicle>> change_lane_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
 
   Trajectory<Vehicle> generate_trajectory(
+    string generated_by,
     vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
     double time_horizon);
 

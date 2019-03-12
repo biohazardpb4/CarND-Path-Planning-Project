@@ -4,11 +4,13 @@
 #include "cost.h"
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <iterator>
 #include <map>
 #include <string>
 #include <vector>
 #include <math.h>
+#include <stdio.h>
 
 using std::string;
 using std::vector;
@@ -54,12 +56,16 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
 
   double min_cost = calculate_cost(*this, predictions, potential_trajectories[0]);
   Trajectory<Vehicle> min_trajectory = potential_trajectories[0];
-  for (auto const &potential_trajectory : potential_trajectories) {
+  for (auto &potential_trajectory : potential_trajectories) {
     auto const &potential_cost = calculate_cost(*this, predictions, potential_trajectory);
+    std::cout << "potential: " << potential_trajectory << std::endl;
     if (potential_cost < min_cost) {
       min_trajectory = potential_trajectory;
     }
   }
+
+  std::cout << "chose: " << min_trajectory << std::endl; 
+
   return min_trajectory;
 }
 
@@ -125,7 +131,9 @@ vector<Trajectory<Vehicle>> Vehicle::target_speed_trajectories(double dt)
     auto end_s = vector<double>{this->s+this->target_speed*i, this->target_speed, 0};
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
-    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, i));
+    std::ostringstream label;
+    label << "target_speed (" << i << "s)";
+    trajectories.push_back(this->generate_trajectory(label.str(), start_s, end_s, start_d, end_d, i));
   }
   return trajectories;
 }
@@ -144,7 +152,7 @@ vector<Trajectory<Vehicle>> Vehicle::slow_down_for_ahead_trajectories(
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
     
-    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON));
+    trajectories.push_back(this->generate_trajectory("slow_down_for_ahead", start_s, end_s, start_d, end_d, TIME_HORIZON));
   }
   return trajectories;
 }
@@ -166,14 +174,14 @@ vector<Trajectory<Vehicle>> Vehicle::change_lane_trajectories(
   if (this->lane() > 0) {
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{(this->lane()-1)*4.0 + 2.0, 0, 0};
-    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON));
+    trajectories.push_back(this->generate_trajectory("change_lane_left", start_s, end_s, start_d, end_d, TIME_HORIZON));
   }
 
   // Min jerk right lane change.
   if (this->lane() < this->lanes_available-1) {
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{(this->lane()+1)*4.0 + 2.0, 0, 0};
-    trajectories.push_back(this->generate_trajectory(start_s, end_s, start_d, end_d, TIME_HORIZON));
+    trajectories.push_back(this->generate_trajectory("change_lane_right", start_s, end_s, start_d, end_d, TIME_HORIZON));
   }
   
   return trajectories;
@@ -223,6 +231,7 @@ bool Vehicle::get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions,
 }
 
 Trajectory<Vehicle> Vehicle::generate_trajectory(
+  string generated_by,
   vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
   double time_horizon) {
   double DT = 0.02;
@@ -233,8 +242,8 @@ Trajectory<Vehicle> Vehicle::generate_trajectory(
   auto d_coeffs = jerk_min_trajectory(start_d, end_d, time_horizon);
   double d_0 = this->d, vd_0 = this->vd, ad_0 = this->ad, jd_0(d_coeffs[3]), sd_0(d_coeffs[4]), cd_0(d_coeffs[5]);
 
-  vector<Vehicle> trajectory;
-  trajectory.push_back(*this);
+  vector<Vehicle> path;
+  path.push_back(*this);
   for (double t=0; t < time_horizon; t+=DT)
   {
     // https://en.wikipedia.org/wiki/Pop_(physics)
@@ -248,9 +257,9 @@ Trajectory<Vehicle> Vehicle::generate_trajectory(
     double ad = ad_0 + 6.0*jd_0*t + 12.0*sd_0*pow(t, 2) + 20.0*cd_0*pow(t, 3);
 
     auto next = Vehicle(s, vs, as, d, vd, ad);
-    trajectory.push_back(next);
+    path.push_back(next);
   }
-  return trajectory;
+  return Trajectory<Vehicle>(generated_by, path);
 }
 
 Trajectory<Vehicle> Vehicle::generate_predictions(double horizon, double dt)
@@ -261,5 +270,5 @@ Trajectory<Vehicle> Vehicle::generate_predictions(double horizon, double dt)
   for (int i = 0; i < int(horizon/dt)+1; i++) {
     predictions.push_back(this->at(i*dt));
   }
-  return Trajectory<Vehicle>(predictions);
+  return Trajectory<Vehicle>("predictions", predictions);
 }
