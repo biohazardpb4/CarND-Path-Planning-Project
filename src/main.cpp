@@ -83,12 +83,13 @@ int main() {
     }
   }
 
+  bool sensors_initiliazed = false;
   double d = 6.0;
   Vehicle ego(0, 0, 0, d, 0, 0); // Also initialized in onConnected.
   vector<Vehicle> ego_history;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-      &map_waypoints_dx, &map_waypoints_dy, &ego, &max_s, &ego_history]
+      &map_waypoints_dx, &map_waypoints_dy, &ego, &sensors_initiliazed, &max_s, &ego_history]
       (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
        uWS::OpCode opCode) {
       // "42" at the start of the message means there's a websocket message event.
@@ -113,6 +114,11 @@ int main() {
       double car_s = j[1]["s"];
       double car_d = j[1]["d"];
       double car_yaw = j[1]["yaw"];
+      if (!sensors_initiliazed) {
+        sensors_initiliazed = true;
+        ego.s = car_s;
+        ego.d = car_d;
+      }
 
       // rewind state to the first unprocessed state
       const int first_unprocessed_i = ego_history.size() - previous_path_x.size();
@@ -155,7 +161,7 @@ int main() {
           i++;
           ego = trajectory.path[j];
           ego_history.push_back(ego);
-          std::cout << "i: " << i << ", j: " << j << ", lane: " << ego.lane() << ", s: " << ego.s << ", vs: " << ego.vs << ", as: " << ego.as << ", d: " << ego.d << ", vd: " << ego.vd << ", ad: " << ego.ad << std::endl;
+          //std::cout << "i: " << i << ", j: " << j << ", lane: " << ego.lane() << ", s: " << ego.s << ", vs: " << ego.vs << ", as: " << ego.as << ", d: " << ego.d << ", vd: " << ego.vd << ", ad: " << ego.ad << std::endl;
 
           auto xy = getXY(ego.s, ego.d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
           next_x_vals.push_back(xy[0]);
@@ -178,7 +184,7 @@ int main() {
       }  // end websocket if
       }); // end h.onMessage
 
-  h.onConnection([&h, &ego, &ego_history](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
+  h.onConnection([&h, &ego, &ego_history, &sensors_initiliazed](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
       std::cout << "Connected!!!" << std::endl;
       ego.s = 0;
       ego.vs = 0;
@@ -186,6 +192,7 @@ int main() {
       ego.d = 6.0;
       ego.vd = 0;
       ego.ad = 0;
+      sensors_initiliazed = false;
       ego_history.clear();
       });
 

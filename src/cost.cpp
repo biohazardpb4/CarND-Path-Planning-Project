@@ -12,8 +12,10 @@
 using std::string;
 using std::vector;
 
-const float LANE_CENTER = 0.1;
-const float EFFICIENCY = 0.2;
+const float LANE_CENTER = 0.2;
+const float EFFICIENCY = 0.15;
+const float SLOW = 0.05;
+const float SHORT = 0.25;
 const float MAX_JERK = 0.9;
 const float MAX_ACCELERATION = 0.85;
 const float MAX_VELOCITY = 0.8;
@@ -39,9 +41,39 @@ float inefficiency_cost(const Vehicle &ego,
   // Cost becomes higher for trajectories with intended lane and final lane 
   //   that have traffic slower than ego's target speed.
   float proposed_speed_final = lane_speed(ego, predictions, trajectory.path[trajectory.path.size()-1].lane());
-  float cost = (2.0*ego.target_speed - proposed_speed_final)/ego.target_speed;
+  float cost = (ego.target_speed - proposed_speed_final)/ego.target_speed;
 
   return cost;
+}
+
+float slow_cost(const Vehicle &ego,
+		const Trajectory<Vehicle> &trajectory,
+		const map<int, Trajectory<Vehicle>> &predictions) {
+      // Get the speed at the 2s mark (typical planning horizon)
+  float speed = trajectory.path[trajectory.path.size()-1].vs;
+  int horizon_index = int(2.0 / 0.02)-1;
+  if (trajectory.path.size() > horizon_index) {
+    speed = trajectory.path[horizon_index].vs;
+  }
+  // Consider all paths which go over target speed as 0 cost
+  if (speed > ego.target_speed) {
+    return 0;
+  }
+  return (ego.target_speed - speed)/ego.target_speed;
+}
+
+float short_cost(const Vehicle &ego,
+		const Trajectory<Vehicle> &trajectory,
+		const map<int, Trajectory<Vehicle>> &predictions) {
+  double max_s = 6945.554;
+      // Get the s at the 2s mark (typical planning horizon)
+  float s = trajectory.path[trajectory.path.size()-1].vs;
+  int horizon_index = int(2.0 / 0.02)-1;
+  if (trajectory.path.size() > horizon_index) {
+    s = trajectory.path[horizon_index].s;
+  }
+  float s_distance = s - ego.s;
+  return exp(-s_distance);
 }
 
 float max_jerk_cost(const Vehicle &ego, 
@@ -98,7 +130,7 @@ float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predic
   // Find the speed of the next car ahead of us in the lane.
   const float HORIZON = 50; // Only consider cars within 50 meters.
   double min_same_lane_distance = 1000; // large number
-  double speed = 1000; // large number
+  double speed = ego.target_speed;
   for (const auto& kv : predictions) {
     if (kv.second.path[0].lane() == lane) {
       double d = kv.second.path[0].s - ego.s;
@@ -108,7 +140,7 @@ float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predic
       }
     }
   }
-  return speed;
+  return std::min(speed, ego.target_speed);
 }
 
 float stay_on_road_cost(const Vehicle &ego,
@@ -129,13 +161,13 @@ float calculate_cost(const Vehicle &ego,
   float cost = 0.0;
 
   // Add additional cost functions here.
-  vector<string> label_list{"inefficiency", "max_jerk", "max_accel", "max_velocity",
+  vector<string> label_list{"inefficiency", "slow", "short", "max_jerk", "max_accel", "max_velocity",
     "collision", "stay_on_road", "off_lane_center"};
   vector<std::function<float(const Vehicle &, const Trajectory<Vehicle> &, 
     const map<int, Trajectory<Vehicle>> &)>> cf_list =
-    {inefficiency_cost, max_jerk_cost, max_accel_cost, max_velocity_cost,
+    {inefficiency_cost, slow_cost, short_cost, max_jerk_cost, max_accel_cost, max_velocity_cost,
     collision_cost, stay_on_road_cost, off_lane_center_cost};
-  vector<float> weight_list = {EFFICIENCY, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY,
+  vector<float> weight_list = {EFFICIENCY, SLOW, SHORT, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY,
     COLLISION, STAY_ON_ROAD, LANE_CENTER};
     
   for (int i = 0; i < cf_list.size(); ++i) {

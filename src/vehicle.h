@@ -24,8 +24,6 @@ public:
   // Vehicle functions
   Trajectory<Vehicle> choose_next_trajectory(map<int, Trajectory<Vehicle>> &predictions, double dt);
 
-  //vector<double> get_kinematics(map<int, Trajectory<Vehicle>> &predictions, int lane, double dt, bool debug = false);
-
   Vehicle at(double dt) const;
 
   // Trajectories
@@ -38,8 +36,12 @@ public:
     vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
     double time_horizon);
 
-  // bool get_vehicle_behind(map<int, Trajectory<Vehicle>> &predictions, int lane,
-  //                         Vehicle &rVehicle);
+  void trim_trajectory(Trajectory<Vehicle>& trajectory);
+
+  vector<Trajectory<Vehicle>> generate_trajectories(
+    string generated_by,
+    vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
+    double time_horizon);
 
   bool get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions, int lane, Vehicle &rVehicle);
 
@@ -47,7 +49,7 @@ public:
 
   int lane() const;
 
-  double target_speed = mph2mps(50);
+  double target_speed = mph2mps(48);
   double max_acceleration = 10;
   int lanes_available = 3;
   int preferred_buffer = 12;

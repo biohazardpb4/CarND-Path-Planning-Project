@@ -11,6 +11,7 @@
 #include <vector>
 #include <math.h>
 #include <stdio.h>
+#include <random>
 
 using std::string;
 using std::vector;
@@ -58,58 +59,17 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
   Trajectory<Vehicle> min_trajectory = potential_trajectories[0];
   for (auto &potential_trajectory : potential_trajectories) {
     auto const &potential_cost = calculate_cost(*this, predictions, potential_trajectory);
-    std::cout << "potential: " << potential_trajectory << std::endl;
+    //std::cout << "potential: " << potential_trajectory << std::endl;
     if (potential_cost < min_cost) {
+      min_cost = potential_cost;
       min_trajectory = potential_trajectory;
     }
   }
 
-  std::cout << "chose: " << min_trajectory << std::endl; 
+  //std::cout << "chose: " << min_trajectory << std::endl << std::endl; 
 
   return min_trajectory;
 }
-
-// vector<double> Vehicle::get_kinematics(map<int, Trajectory<Vehicle>> &predictions,
-//                                        int lane, double dt, bool debug)
-// {
-//   // Gets next timestep kinematics (position, velocity, acceleration)
-//   //   for a given lane. Tries to choose the maximum velocity and acceleration,
-//   //   given other vehicle positions and accel/velocity constraints.
-//   double max_velocity_accel_limit = this->max_acceleration * dt + this->vs;
-//   double scaled_target_speed = projectOnWaypointPath(this->target_speed, this->s, this->d, Vehicle::map_waypoints_s, Vehicle::map_waypoints_x, Vehicle::map_waypoints_y);
-//   double new_position;
-//   double new_velocity;
-//   double new_accel;
-//   Vehicle vehicle_ahead(0, 0, 0, 0, 0, 0);
-//   if (get_vehicle_ahead(predictions, lane, vehicle_ahead))
-//   {
-//     /*if (get_vehicle_behind(predictions, lane, vehicle_behind)) {
-//       // must travel at the speed of traffic, regardless of preferred buffer
-//       new_velocity = std::min(std::min(vehicle_ahead.vs, max_velocity_accel_limit), this->target_speed);
-//       if(debug) std::cout << "vehicle ahead and behind. new velocity: " << new_velocity << std::endl;
-//     } else {*/
-//     double max_velocity_in_front = (vehicle_ahead.s - this->s - this->preferred_buffer) + vehicle_ahead.vs - 0.5 * (this->as);
-//     new_velocity = std::min(std::min(max_velocity_in_front,
-//                                      max_velocity_accel_limit),
-//                             scaled_target_speed);
-//     if (debug)
-//       std::cout << "vehicle ahead. new velocity: " << new_velocity << std::endl;
-//     //}
-//   }
-//   else
-//   {
-//     new_velocity = std::min(max_velocity_accel_limit, scaled_target_speed);
-//     if (debug)
-//       std::cout << "clear path. new velocity: " << new_velocity << std::endl;
-//   }
-//   new_velocity = std::max(new_velocity, 0.0);
-//   new_accel = (new_velocity - this->vs) / dt;                    // Equation: (v_1 - v_0)/t = acceleration
-//   new_accel = std::max(new_accel, -this->max_acceleration);         // cap the acceleration on the low end
-//   new_position = this->s + 0.5 * (this->vs + new_velocity) * dt; // d' = d + (vi + vf) / 2 * t
-//   //if(debug) std::cout << "old s: " << this->s << ", v: " << this->vs << ", a: " << this->as << std::endl;
-//   //if(debug) std::cout << "new s: " << new_position << ", v: " << new_velocity << ", a: " <<new_accel << std::endl;
-//   return {new_position, new_velocity, new_accel};
-// }
 
 // at returns a vehicle with position and velocity updated based on a supplied time delta.
 Vehicle Vehicle::at(double dt) const {
@@ -126,14 +86,15 @@ vector<Trajectory<Vehicle>> Vehicle::target_speed_trajectories(double dt)
 {
   vector<Trajectory<Vehicle>> trajectories;
   // Generates options ranging from 1 to 5 seconds to get up to speed.
-  for (int i = 1; i < 5; i++) {
+  for (int i = 1; i < 10; i+=2) {
     auto start_s = vector<double>{this->s, this->vs, this->as};
     auto end_s = vector<double>{this->s+this->target_speed*i, this->target_speed, 0};
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
     std::ostringstream label;
     label << "target_speed (" << i << "s)";
-    trajectories.push_back(this->generate_trajectory(label.str(), start_s, end_s, start_d, end_d, i));
+    const auto& subtrajectories = this->generate_trajectories(label.str(), start_s, end_s, start_d, end_d, i);
+    trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
   }
   return trajectories;
 }
@@ -152,7 +113,7 @@ vector<Trajectory<Vehicle>> Vehicle::slow_down_for_ahead_trajectories(
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
     
-    trajectories.push_back(this->generate_trajectory("slow_down_for_ahead", start_s, end_s, start_d, end_d, TIME_HORIZON));
+    return this->generate_trajectories("slow_down_for_ahead", start_s, end_s, start_d, end_d, TIME_HORIZON);
   }
   return trajectories;
 }
@@ -168,46 +129,26 @@ vector<Trajectory<Vehicle>> Vehicle::change_lane_trajectories(
   const double TIME_HORIZON = 1.5; // TODO: perturb this
   // Min jerk trajectory to reach target vs.
   auto start_s = vector<double>{this->s, this->vs, this->as};
-  auto end_s = vector<double>{this->s+this->target_speed*TIME_HORIZON*0.95, this->target_speed, 0};
+  auto end_s = vector<double>{this->s+this->vs*TIME_HORIZON, this->vs, 0};
 
   // Min jerk left lane change.
   if (this->lane() > 0) {
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{(this->lane()-1)*4.0 + 2.0, 0, 0};
-    trajectories.push_back(this->generate_trajectory("change_lane_left", start_s, end_s, start_d, end_d, TIME_HORIZON));
+    const auto& subtrajectories = this->generate_trajectories("change_lane_left", start_s, end_s, start_d, end_d, TIME_HORIZON);
+    trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
   }
 
   // Min jerk right lane change.
   if (this->lane() < this->lanes_available-1) {
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{(this->lane()+1)*4.0 + 2.0, 0, 0};
-    trajectories.push_back(this->generate_trajectory("change_lane_right", start_s, end_s, start_d, end_d, TIME_HORIZON));
+    const auto& subtrajectories = this->generate_trajectories("change_lane_right", start_s, end_s, start_d, end_d, TIME_HORIZON);
+    trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
   }
   
   return trajectories;
 }
-
-// bool Vehicle::get_vehicle_behind(map<int, Trajectory<Vehicle>> &predictions,
-//                                  int lane, Vehicle &rVehicle)
-// {
-//   // Returns a true if a vehicle is found behind the current vehicle, false
-//   //   otherwise. The passed reference rVehicle is updated if a vehicle is found.
-//   int max_s = -1;
-//   bool found_vehicle = false;
-//   for (map<int, Trajectory<Vehicle>>::iterator it = predictions.begin();
-//        it != predictions.end(); ++it)
-//   {
-//     Vehicle temp_vehicle = it->second[0];
-//     if (temp_vehicle.lane == this->lane && temp_vehicle.s < this->s && temp_vehicle.s > max_s)
-//     {
-//       max_s = temp_vehicle.s;
-//       rVehicle = temp_vehicle;
-//       found_vehicle = true;
-//     }
-//   }
-
-//   return found_vehicle;
-// }
 
 bool Vehicle::get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions,
                                 int lane, Vehicle &rVehicle)
@@ -259,7 +200,40 @@ Trajectory<Vehicle> Vehicle::generate_trajectory(
     auto next = Vehicle(s, vs, as, d, vd, ad);
     path.push_back(next);
   }
-  return Trajectory<Vehicle>(generated_by, path);
+  auto trajectory = Trajectory<Vehicle>(generated_by, path);
+  this->trim_trajectory(trajectory);
+  return trajectory;
+}
+
+vector<Trajectory<Vehicle>> Vehicle::generate_trajectories(
+  string generated_by,
+  vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
+  double time_horizon) {
+    vector<Trajectory<Vehicle>> trajectories;
+    double SIGMA_S = 10.0, SIGMA_VS = 4.0, SIGMA_AS = 2.0,
+      SIGMA_D = 1.0, SIGMA_VD = 1.0, SIGMA_AD = 1.0, SIGMA_T = 2.0;
+
+  std::default_random_engine g;
+  std::normal_distribution<double> s(end_s[0], SIGMA_S), vs(end_s[1], SIGMA_VS), as(end_s[2], SIGMA_AS),
+    d(end_d[0], SIGMA_D), vd(end_d[1], SIGMA_VD), ad(end_d[2], SIGMA_AD), t(time_horizon, SIGMA_T);
+
+  for (int i = 0; i < 10; i++) {
+    vector<double> normal_end_s{s(g), vs(g), as(g)};
+    vector<double> normal_end_d{d(g), vd(g), ad(g)};
+    double h = t(g);
+    trajectories.push_back(this->generate_trajectory(generated_by, start_s, normal_end_s, start_d, normal_end_d, h));
+  }
+  //trajectories.push_back(this->generate_trajectory(generated_by, start_s, end_s, start_d, end_d, time_horizon));
+  return trajectories;
+}
+
+void Vehicle::trim_trajectory(Trajectory<Vehicle>& trajectory) {
+  int horizon_index = int(2.5 / 0.02)-1;
+  vector<Vehicle> trimmed_path;
+  for (int i = 0; i < horizon_index && i < trajectory.path.size(); i++) {
+    trimmed_path.push_back(trajectory.path[i]);
+  }
+  trajectory.path = trimmed_path;
 }
 
 Trajectory<Vehicle> Vehicle::generate_predictions(double horizon, double dt)

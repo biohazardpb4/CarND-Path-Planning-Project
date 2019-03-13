@@ -20,7 +20,11 @@ public:
   ~Trajectory();
 
   friend ostream & operator << (ostream &out, const Trajectory &t) {
-      out << "trajectory: " << t.generated_by << " -- total: " << t.total_cost;
+      const auto& start = t.path[0];
+      const auto& end = t.path[t.path.size()-1];
+      out << "trajectory: " << t.generated_by << " s<" << start.s << "," << start.vs << "," << start.as << "> d<"
+        << start.d << "," << start.vd << "," << start.ad << "> to s<" << end.s << "," << end.vs << "," << end.as << "> d<"
+        << end.d << "," << end.vd << "," << end.ad << "> -- total: " << t.total_cost;
       for (const auto& ic : t.individual_costs) {
           out << ", " << ic.first << "=" << ic.second;
       }

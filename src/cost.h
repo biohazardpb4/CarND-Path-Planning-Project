@@ -21,6 +21,14 @@ float inefficiency_cost(const Vehicle &ego,
                         const Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions);
 
+float slow_cost(const Vehicle &ego,
+		const Trajectory<Vehicle> &trajectory,
+		const map<int, Trajectory<Vehicle>> &predictions);
+
+float short_cost(const Vehicle &ego,
+		const Trajectory<Vehicle> &trajectory,
+		const map<int, Trajectory<Vehicle>> &predictions);
+
 float max_jerk_cost(const Vehicle &ego,
 		const Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions);
