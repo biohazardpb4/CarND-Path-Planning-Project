@@ -49,7 +49,7 @@ public:
 
   int lane() const;
 
-  double target_speed = mph2mps(48);
+  double target_speed = mph2mps(46);
   double max_acceleration = 10;
   int lanes_available = 3;
   int preferred_buffer = 12;

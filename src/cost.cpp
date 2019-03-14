@@ -3,6 +3,7 @@
 #include <math.h>
 #include <functional>
 #include <iostream>
+#include <sstream>
 #include <iterator>
 #include <map>
 #include <string>
@@ -12,42 +13,47 @@
 using std::string;
 using std::vector;
 
-const float LANE_CENTER = 0.2;
-const float EFFICIENCY = 0.15;
-const float SLOW = 0.05;
-const float SHORT = 0.25;
+// Nice to have
+const float LANE_CENTER = 0.1;
+const float EFFICIENCY = 1.4;
+const float SLOW = 0.25;
+const float SHORT = 0.3;
+
+// Need to have
 const float MAX_JERK = 0.9;
 const float MAX_ACCELERATION = 0.85;
 const float MAX_VELOCITY = 0.8;
 const float STAY_ON_ROAD = 0.95;
-const float COLLISION = 1.0;
+
+// Critical
+const float COLLISION = 10.0;
 
 float off_lane_center_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories which stray farther away from the center.
   double d = 0;
   for (const auto& step : trajectory.path) {
-    d += distance(step.d, 0, step.lane()*4.0-2.0, 0);
+    d += distance(step.d, 0, step.lane()*4.0+2.0, 0);
   }
 
-  return 1.0 - exp(-d);
+  return 1.0 - exp(-d/50.0);
 }
 
 
 float inefficiency_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with intended lane and final lane 
   //   that have traffic slower than ego's target speed.
   float proposed_speed_final = lane_speed(ego, predictions, trajectory.path[trajectory.path.size()-1].lane());
-  float cost = (ego.target_speed - proposed_speed_final)/ego.target_speed;
+  float diff = ego.target_speed - proposed_speed_final;
 
-  return cost;
+  return 1.0 - exp(-diff/10.0);
 }
 
 float slow_cost(const Vehicle &ego,
-		const Trajectory<Vehicle> &trajectory,
+		Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions) {
       // Get the speed at the 2s mark (typical planning horizon)
   float speed = trajectory.path[trajectory.path.size()-1].vs;
@@ -63,7 +69,7 @@ float slow_cost(const Vehicle &ego,
 }
 
 float short_cost(const Vehicle &ego,
-		const Trajectory<Vehicle> &trajectory,
+		Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions) {
   double max_s = 6945.554;
       // Get the s at the 2s mark (typical planning horizon)
@@ -77,7 +83,7 @@ float short_cost(const Vehicle &ego,
 }
 
 float max_jerk_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with > 10 m/s^3 jerk
   if (trajectory.path.size() < 2) {
@@ -94,7 +100,7 @@ float max_jerk_cost(const Vehicle &ego,
 }
 
 float max_accel_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with > 10 m/s^2 acceleration
   for (const auto& step : trajectory.path) {
@@ -106,7 +112,7 @@ float max_accel_cost(const Vehicle &ego,
 }
 
 float max_velocity_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with > 50 mph velocity
   for (const auto& step : trajectory.path) {
@@ -118,12 +124,12 @@ float max_velocity_cost(const Vehicle &ego,
 }
 
 float collision_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher when collisions occur
   float nearest = nearest_vehicle(trajectory, predictions);
   // std::cout << "nearest vehicle: " << nearest << std::endl;
-  return nearest < 4 ? 1 : 0;
+  return nearest < 3 ? 1 : 0;
 }
 
 float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predictions, const int lane) {
@@ -140,15 +146,15 @@ float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predic
       }
     }
   }
-  return std::min(speed, ego.target_speed);
+  return std::min(speed, ego.target_speed*1.1);
 }
 
 float stay_on_road_cost(const Vehicle &ego,
-		     const Trajectory<Vehicle> &trajectory,
+		     Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher if the car goes off of the road
   for (const auto& step : trajectory.path) {
-    if (step.d < 0 || step.d > step.lanes_available*4) {
+    if (step.d < 1.5 || step.d > step.lanes_available*4-1.5) {
       return 1;
     }
   }
@@ -163,7 +169,7 @@ float calculate_cost(const Vehicle &ego,
   // Add additional cost functions here.
   vector<string> label_list{"inefficiency", "slow", "short", "max_jerk", "max_accel", "max_velocity",
     "collision", "stay_on_road", "off_lane_center"};
-  vector<std::function<float(const Vehicle &, const Trajectory<Vehicle> &, 
+  vector<std::function<float(const Vehicle &, Trajectory<Vehicle> &, 
     const map<int, Trajectory<Vehicle>> &)>> cf_list =
     {inefficiency_cost, slow_cost, short_cost, max_jerk_cost, max_accel_cost, max_velocity_cost,
     collision_cost, stay_on_road_cost, off_lane_center_cost};
@@ -180,17 +186,33 @@ float calculate_cost(const Vehicle &ego,
   return cost;
 }
 
-float nearest_vehicle(const Trajectory<Vehicle> &trajectory, const map<int, Trajectory<Vehicle>> &predictions) {
+float nearest_vehicle(Trajectory<Vehicle> &trajectory, const map<int, Trajectory<Vehicle>> &predictions) {
   float nearest = 1000000; // big number
+  int nearest_i = -1;
+  Vehicle nearest_vehicle;
   double DT = 0.02; // WARNING -- THIS MUST LINE UP WITH WHAT WAS USED TO GENERATE THE TRAJECTORY!
   double t = 0;
   for (const auto& ego : trajectory.path) {
-    for (const auto& kv : predictions) {
-      const Vehicle& predicted = kv.second.path[0].at(t); // Assume constant acceleration of other vehicles.
+    for (auto& kv : predictions) {
+      auto other = kv.second.path[0];
+      // Assume a bit of negative acceleration to protect against slow downs
+      other.as = -4.0;
+      const Vehicle& predicted = other.at(t); // Assume constant acceleration of other vehicles.
       float d = distance(ego.s, ego.d, predicted.s, predicted.d);
-      nearest = std::min(nearest, d);
+      if (d < nearest) {
+        nearest = d;
+        nearest_i = kv.first;
+        nearest_vehicle = predicted;
+      }
     }
     t += DT;
   }
+
+  std::ostringstream debug_info;
+  debug_info << "nearest(car:" << nearest_i << " s<" << nearest_vehicle.s << "," <<
+    nearest_vehicle.vs << "," << nearest_vehicle.as << "> d<" << nearest_vehicle.d <<
+    "," << nearest_vehicle.vd << "," << nearest_vehicle.ad << ">): " << nearest;
+  trajectory.debug = debug_info.str();
+
   return nearest;
 }

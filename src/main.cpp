@@ -69,7 +69,7 @@ int main() {
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
 
-  const int WAYPOINT_INTERPOLATION_FACTOR = 10;
+  const int WAYPOINT_INTERPOLATION_FACTOR = 100;
   double d_i = 1.0 / WAYPOINT_INTERPOLATION_FACTOR;
   for (int i = 0; i < raw_map_waypoints_x.size(); i++) {
     double iteration = i;

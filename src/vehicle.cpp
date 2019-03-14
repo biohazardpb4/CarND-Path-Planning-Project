@@ -66,7 +66,7 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
     }
   }
 
-  //std::cout << "chose: " << min_trajectory << std::endl << std::endl; 
+  std::cout << "chose: " << min_trajectory << std::endl << std::endl; 
 
   return min_trajectory;
 }
@@ -88,7 +88,7 @@ vector<Trajectory<Vehicle>> Vehicle::target_speed_trajectories(double dt)
   // Generates options ranging from 1 to 5 seconds to get up to speed.
   for (int i = 1; i < 10; i+=2) {
     auto start_s = vector<double>{this->s, this->vs, this->as};
-    auto end_s = vector<double>{this->s+this->target_speed*i, this->target_speed, 0};
+    auto end_s = vector<double>{this->s+this->target_speed*i*1.1, this->target_speed*1.1, 0};
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
     std::ostringstream label;
@@ -211,7 +211,7 @@ vector<Trajectory<Vehicle>> Vehicle::generate_trajectories(
   double time_horizon) {
     vector<Trajectory<Vehicle>> trajectories;
     double SIGMA_S = 10.0, SIGMA_VS = 4.0, SIGMA_AS = 2.0,
-      SIGMA_D = 1.0, SIGMA_VD = 1.0, SIGMA_AD = 1.0, SIGMA_T = 2.0;
+      SIGMA_D = 1.0, SIGMA_VD = 1.0, SIGMA_AD = 1.0, SIGMA_T = 1.0;
 
   std::default_random_engine g;
   std::normal_distribution<double> s(end_s[0], SIGMA_S), vs(end_s[1], SIGMA_VS), as(end_s[2], SIGMA_AS),

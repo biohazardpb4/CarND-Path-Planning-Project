@@ -14,39 +14,39 @@ float calculate_cost(const Vehicle &ego,
                      Trajectory<Vehicle> &trajectory);
 
 float off_lane_center_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions);
 						
 float inefficiency_cost(const Vehicle &ego, 
-                        const Trajectory<Vehicle> &trajectory, 
+                        Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions);
 
 float slow_cost(const Vehicle &ego,
-		const Trajectory<Vehicle> &trajectory,
+		Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions);
 
 float short_cost(const Vehicle &ego,
-		const Trajectory<Vehicle> &trajectory,
+		Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions);
 
 float max_jerk_cost(const Vehicle &ego,
-		const Trajectory<Vehicle> &trajectory,
+		Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions);
 
 float max_accel_cost(const Vehicle &ego,
-		     const Trajectory<Vehicle> &trajectory,
+		     Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions);
 
 float max_velocity_cost(const Vehicle &ego,
-		     const Trajectory<Vehicle> &trajectory,
+		     Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions);
 
 float collision_cost(const Vehicle &ego,
-		     const Trajectory<Vehicle> &trajectory,
+		     Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions);
 
 float stay_on_road_cost(const Vehicle &ego,
-		     const Trajectory<Vehicle> &trajectory,
+		     Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions);
 
 float lane_speed(const Vehicle &ego,
@@ -54,7 +54,7 @@ float lane_speed(const Vehicle &ego,
 		 const int lane);
 
 float nearest_vehicle(
-	const Trajectory<Vehicle> &trajectory,
+	Trajectory<Vehicle> &trajectory,
 	const map<int, Trajectory<Vehicle>> &predictions);
 
 #endif  // COST_H
