@@ -14,10 +14,10 @@ using std::string;
 using std::vector;
 
 // Nice to have
-const float LANE_CENTER = 0.1;
+const float LANE_CENTER = 0.2;
 const float EFFICIENCY = 1.4;
 const float SLOW = 0.25;
-const float SHORT = 0.3;
+const float SHORT = 0.5;
 
 // Need to have
 const float MAX_JERK = 0.9;
@@ -31,13 +31,15 @@ const float COLLISION = 10.0;
 float off_lane_center_cost(const Vehicle &ego, 
                         Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
-  // Cost becomes higher for trajectories which stray farther away from the center.
-  double d = 0;
-  for (const auto& step : trajectory.path) {
-    d += distance(step.d, 0, step.lane()*4.0+2.0, 0);
+  // Cost becomes higher for trajectories which end points farther away from the center.
+  auto& step = trajectory.path[trajectory.path.size()-1];
+  int horizon_index = int(2.0 / 0.02)-1;
+  if (trajectory.path.size() > horizon_index) {
+    step = trajectory.path[horizon_index];
   }
+  float d = distance(step.d, 0, step.lane()*4.0+2.0, 0);
 
-  return 1.0 - exp(-d/50.0);
+  return 1.0 - exp(-d);
 }
 
 
@@ -65,21 +67,24 @@ float slow_cost(const Vehicle &ego,
   if (speed > ego.target_speed) {
     return 0;
   }
-  return (ego.target_speed - speed)/ego.target_speed;
+  float diff = ego.target_speed - speed;
+
+  return 1.0 - exp(-diff/10.0);
 }
 
 float short_cost(const Vehicle &ego,
 		Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions) {
-  double max_s = 6945.554;
       // Get the s at the 2s mark (typical planning horizon)
-  float s = trajectory.path[trajectory.path.size()-1].vs;
+  float s = trajectory.path[trajectory.path.size()-1].s;
+  float d = trajectory.path[trajectory.path.size()-1].d;
   int horizon_index = int(2.0 / 0.02)-1;
   if (trajectory.path.size() > horizon_index) {
     s = trajectory.path[horizon_index].s;
+    d = trajectory.path[horizon_index].d;
   }
-  float s_distance = s - ego.s;
-  return exp(-s_distance);
+  float s_distance = distance(s, d, ego.s, ego.d);
+  return exp(-s_distance/(ego.target_speed*2.0));
 }
 
 float max_jerk_cost(const Vehicle &ego, 
@@ -92,7 +97,7 @@ float max_jerk_cost(const Vehicle &ego,
   for (int i = 0; i < trajectory.path.size()-1; i++) {
     double jerk = distance(trajectory.path[i].as, trajectory.path[i].ad,
       trajectory.path[i+1].as, trajectory.path[i+1].ad);
-    if (jerk > 10) {
+    if (jerk > ego.max_jerk) {
       return 1;
     }
   }
@@ -104,7 +109,7 @@ float max_accel_cost(const Vehicle &ego,
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with > 10 m/s^2 acceleration
   for (const auto& step : trajectory.path) {
-    if (distance(0, 0, step.ad, step.as) > 10) {
+    if (distance(0, 0, step.ad, step.as) > ego.max_acceleration) {
       return 1;
     }
   }
@@ -146,7 +151,7 @@ float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predic
       }
     }
   }
-  return std::min(speed, ego.target_speed*1.1);
+  return std::min(speed, ego.target_speed);
 }
 
 float stay_on_road_cost(const Vehicle &ego,
@@ -195,14 +200,16 @@ float nearest_vehicle(Trajectory<Vehicle> &trajectory, const map<int, Trajectory
   for (const auto& ego : trajectory.path) {
     for (auto& kv : predictions) {
       auto other = kv.second.path[0];
-      // Assume a bit of negative acceleration to protect against slow downs
-      other.as = -4.0;
-      const Vehicle& predicted = other.at(t); // Assume constant acceleration of other vehicles.
-      float d = distance(ego.s, ego.d, predicted.s, predicted.d);
-      if (d < nearest) {
-        nearest = d;
-        nearest_i = kv.first;
-        nearest_vehicle = predicted;
+      // Run scenarios with accelerations ranging from -4.0 to +4.0 m/s^2
+      for (double as = -4; as < 0.5; as += 4.0) {
+        other.as = as;
+        const Vehicle& predicted = other.at(t); // Assume constant acceleration of other vehicles.
+        float d = distance(ego.s, ego.d, predicted.s, predicted.d);
+        if (d < nearest) {
+          nearest = d;
+          nearest_i = kv.first;
+          nearest_vehicle = predicted;
+        }
       }
     }
     t += DT;

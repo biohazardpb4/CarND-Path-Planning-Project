@@ -59,7 +59,7 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
   Trajectory<Vehicle> min_trajectory = potential_trajectories[0];
   for (auto &potential_trajectory : potential_trajectories) {
     auto const &potential_cost = calculate_cost(*this, predictions, potential_trajectory);
-    //std::cout << "potential: " << potential_trajectory << std::endl;
+    std::cout << "potential: " << potential_trajectory << std::endl;
     if (potential_cost < min_cost) {
       min_cost = potential_cost;
       min_trajectory = potential_trajectory;
@@ -86,9 +86,9 @@ vector<Trajectory<Vehicle>> Vehicle::target_speed_trajectories(double dt)
 {
   vector<Trajectory<Vehicle>> trajectories;
   // Generates options ranging from 1 to 5 seconds to get up to speed.
-  for (int i = 1; i < 10; i+=2) {
+  for (int i = 3; i <= 9; i+=3) {
     auto start_s = vector<double>{this->s, this->vs, this->as};
-    auto end_s = vector<double>{this->s+this->target_speed*i*1.1, this->target_speed*1.1, 0};
+    auto end_s = vector<double>{this->s+(this->vs+this->target_speed)/2.0*i, this->target_speed, 0};
     auto start_d = vector<double>{this->d, this->vd, this->ad};
     auto end_d = vector<double>{this->lane()*4.0+2.0, 0, 0};
     std::ostringstream label;
@@ -126,7 +126,7 @@ vector<Trajectory<Vehicle>> Vehicle::change_lane_trajectories(
   // Vehicle ahead;
   // if (this->get_vehicle_ahead(predictions, this->lane(), ahead)) {
 
-  const double TIME_HORIZON = 1.5; // TODO: perturb this
+  const double TIME_HORIZON = 5;
   // Min jerk trajectory to reach target vs.
   auto start_s = vector<double>{this->s, this->vs, this->as};
   auto end_s = vector<double>{this->s+this->vs*TIME_HORIZON, this->vs, 0};
@@ -211,19 +211,19 @@ vector<Trajectory<Vehicle>> Vehicle::generate_trajectories(
   double time_horizon) {
     vector<Trajectory<Vehicle>> trajectories;
     double SIGMA_S = 10.0, SIGMA_VS = 4.0, SIGMA_AS = 2.0,
-      SIGMA_D = 1.0, SIGMA_VD = 1.0, SIGMA_AD = 1.0, SIGMA_T = 1.0;
+      SIGMA_D = 0.5, SIGMA_VD = 0.25, SIGMA_AD = 0.1, SIGMA_T = 1.0;
 
   std::default_random_engine g;
   std::normal_distribution<double> s(end_s[0], SIGMA_S), vs(end_s[1], SIGMA_VS), as(end_s[2], SIGMA_AS),
     d(end_d[0], SIGMA_D), vd(end_d[1], SIGMA_VD), ad(end_d[2], SIGMA_AD), t(time_horizon, SIGMA_T);
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 11; i++) {
     vector<double> normal_end_s{s(g), vs(g), as(g)};
     vector<double> normal_end_d{d(g), vd(g), ad(g)};
     double h = t(g);
     trajectories.push_back(this->generate_trajectory(generated_by, start_s, normal_end_s, start_d, normal_end_d, h));
   }
-  //trajectories.push_back(this->generate_trajectory(generated_by, start_s, end_s, start_d, end_d, time_horizon));
+  trajectories.push_back(this->generate_trajectory(generated_by, start_s, end_s, start_d, end_d, time_horizon));
   return trajectories;
 }
 

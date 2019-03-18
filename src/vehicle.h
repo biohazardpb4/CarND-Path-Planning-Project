@@ -50,7 +50,8 @@ public:
   int lane() const;
 
   double target_speed = mph2mps(46);
-  double max_acceleration = 10;
+  double max_acceleration = 7;
+  double max_jerk = 5;
   int lanes_available = 3;
   int preferred_buffer = 12;
 
