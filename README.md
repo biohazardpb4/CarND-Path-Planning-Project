@@ -9,9 +9,6 @@ To run the simulator on Mac/Linux, first make the binary file executable with th
 sudo chmod u+x {simulator_file_name}
 ```
 
-### Goals
-In this project your goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. You will be provided the car's localization and sensor fusion data, there is also a sparse map list of waypoints around the highway. The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 10 m/s^3.
-
 #### The map of the highway is in data/highway_map.txt
 Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
 
@@ -25,6 +22,43 @@ The highway's waypoints loop around so the frenet s value, distance along the ro
 4. Run it: `./path_planning`.
 
 Here is the data provided from the Simulator to the C++ Program
+
+## Path Planning Details
+This project's path generation implementation is based on ideas seen in the [Optimal Trajectory Generation for Dynamic Street Scenarios in a Frenet Frame](https://www.researchgate.net/publication/224156269_Optimal_Trajectory_Generation_for_Dynamic_Street_Scenarios_in_a_Frenet_Frame) paper.
+
+### Path Planner Steps
+1. For each strategy: straignt, change lane left, change lane right, and slow down for car ahead, generate several min-jerk trajectories probabalistically.
+1. For each generated trajectory, judge its cost via several cost functions.
+1. For the trajectory with the lowest cost, convert that from Frenet to XY coordinates and emit a path.
+
+#### Cost Functions
+The following cost functions and weights are used:
+
+// Nice to have
+const float LANE_CENTER = 0.1;
+const float EFFICIENCY = 1.4;
+const float SLOW = 0.25;
+const float SHORT = 0.3;
+
+// Need to have
+const float MAX_JERK = 0.9;
+const float MAX_ACCELERATION = 0.85;
+const float MAX_VELOCITY = 0.8;
+const float STAY_ON_ROAD = 0.95;
+
+// Critical
+const float COLLISION = 10.0;
+
+Collision is given the highest weight so that we attempt to never take a path that collides with another vehicle.
+
+#### Collision Detection
+To detect collisions, the position of the ego and other vehicles are predicted out to a 2s horizon. If the ego comes within a 2.5m radius of another car within that time, a collision cost is added. For non-ego cars, it helped to assume a negative acceleration of 2.5 m/s^2 to account for uncertainty around non-ego vehicles applying brakes.
+
+#### Path Continuity
+To keep path continuinity upon re-planning, which is done whenever the simulator asks for more data, the position, velocity, and acceleration of each step of the current trajectory is stored. Upon re-planning, the position, velocity, and acceleration from the first unprocessed step are used as the starting point of all generated trajectories. This allows for re-planning at any point in the path whilst achieving some min-jerk trajectory at all times.
+
+#### Waypoint Interpolation
+The provided waypoints are quite far apart. Naively navigating from waypoint to waypoint produces sharp turns at each point. To alleviate this in this project, waypoints are interpolated 100x via cubic splines, which results in a much smoother path.
 
 #### Main car's localization Data (No Noise)
 
