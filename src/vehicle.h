@@ -29,7 +29,9 @@ public:
   // Trajectories
   vector<Trajectory<Vehicle>> target_speed_trajectories(double dt);
   vector<Trajectory<Vehicle>> slow_down_for_ahead_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
-  vector<Trajectory<Vehicle>> change_lane_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
+  //vector<Trajectory<Vehicle>> change_lane_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
+  vector<Trajectory<Vehicle>> change_lane_left_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
+  vector<Trajectory<Vehicle>> change_lane_right_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
 
   Trajectory<Vehicle> generate_trajectory(
     string generated_by,

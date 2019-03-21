@@ -43,17 +43,48 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
    * @output The best (lowest cost) trajectory corresponding to the next ego 
    *   vehicle state.
    */
+
   vector<Trajectory<Vehicle>> potential_trajectories;
-  for (auto const &potential_trajectory : slow_down_for_ahead_trajectories(predictions, dt)) {
-    potential_trajectories.push_back(potential_trajectory);
+  Vehicle ahead;
+  if (this->get_vehicle_ahead(predictions, this->lane(), ahead)) {
+    if(this->lane() > 0 && !this->get_vehicle_ahead(predictions, this->lane()-1, ahead)) {
+      // change lane left
+      for (auto const &potential_trajectory : this->change_lane_left_trajectories(predictions, dt)) {
+        potential_trajectories.push_back(potential_trajectory);
+      }
+    } else if (this->lane() < this->lanes_available-1 && !this->get_vehicle_ahead(predictions, this->lane()+1, ahead)) {
+      // change lane right
+      for (auto const &potential_trajectory : this->change_lane_right_trajectories(predictions, dt)) {
+        potential_trajectories.push_back(potential_trajectory);
+      }
+    } else {
+      // slow down
+      for (auto const &potential_trajectory : this->slow_down_for_ahead_trajectories(predictions, dt)) {
+        potential_trajectories.push_back(potential_trajectory);
+      }
+    }
+  } else {
+    int center_lane = this->lanes_available/2;
+    if (this->lane() != center_lane) {
+      if (this->lane() > center_lane && !this->get_vehicle_ahead(predictions, this->lane()-1, ahead)) {
+        // change lane left
+        for (auto const &potential_trajectory : this->change_lane_left_trajectories(predictions, dt)) {
+          potential_trajectories.push_back(potential_trajectory);
+        }
+      }
+      else if (this->lane() < center_lane && !this->get_vehicle_ahead(predictions, this->lane()+1, ahead)) {
+        // change lane right
+        for (auto const &potential_trajectory : this->change_lane_right_trajectories(predictions, dt)) {
+          potential_trajectories.push_back(potential_trajectory);
+        }
+      }
+    } else {
+      // get up to speed
+      for (auto const &potential_trajectory : target_speed_trajectories(dt)) {
+        potential_trajectories.push_back(potential_trajectory);
+      }
+    }
   }
-  for (auto const &potential_trajectory : change_lane_trajectories(predictions, dt)) {
-    potential_trajectories.push_back(potential_trajectory);
-  }
-  for (auto const &potential_trajectory : target_speed_trajectories(dt)) {
-    potential_trajectories.push_back(potential_trajectory);
-  }
-  // TODO: add other potential trajectories
 
   double min_cost = calculate_cost(*this, predictions, potential_trajectories[0]);
   Trajectory<Vehicle> min_trajectory = potential_trajectories[0];
@@ -118,34 +149,68 @@ vector<Trajectory<Vehicle>> Vehicle::slow_down_for_ahead_trajectories(
   return trajectories;
 }
 
-vector<Trajectory<Vehicle>> Vehicle::change_lane_trajectories(
+// vector<Trajectory<Vehicle>> Vehicle::change_lane_trajectories(
+//   map<int, Trajectory<Vehicle>> &predictions, double dt)
+// {
+//   vector<Trajectory<Vehicle>> trajectories;
+//   // TODO: use get_vehicle_ahead to limit goal parameters
+//   // Vehicle ahead;
+//   // if (this->get_vehicle_ahead(predictions, this->lane(), ahead)) {
+
+//   const double TIME_HORIZON = 5;
+//   // Min jerk trajectory to reach target vs.
+//   auto start_s = vector<double>{this->s, this->vs, this->as};
+//   auto end_s = vector<double>{this->s+this->vs*TIME_HORIZON, this->vs, 0};
+
+//   // Min jerk left lane change.
+//   if (this->lane() > 0) {
+//     auto start_d = vector<double>{this->d, this->vd, this->ad};
+//     auto end_d = vector<double>{(this->lane()-1)*4.0 + 2.0, 0, 0};
+//     const auto& subtrajectories = this->change_lane_left_trajectories(predictions, dt);
+//     trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
+//   }
+
+//   // Min jerk right lane change.
+//   if (this->lane() < this->lanes_available-1) {
+//     auto start_d = vector<double>{this->d, this->vd, this->ad};
+//     auto end_d = vector<double>{(this->lane()+1)*4.0 + 2.0, 0, 0};
+//     const auto& subtrajectories = this->change_lane_right_trajectories(predictions, dt);
+//     trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
+//   }
+  
+//   return trajectories;
+// }
+
+vector<Trajectory<Vehicle>> Vehicle::change_lane_left_trajectories(
   map<int, Trajectory<Vehicle>> &predictions, double dt)
 {
   vector<Trajectory<Vehicle>> trajectories;
-  // TODO: use get_vehicle_ahead to limit goal parameters
-  // Vehicle ahead;
-  // if (this->get_vehicle_ahead(predictions, this->lane(), ahead)) {
-
   const double TIME_HORIZON = 5;
   // Min jerk trajectory to reach target vs.
   auto start_s = vector<double>{this->s, this->vs, this->as};
   auto end_s = vector<double>{this->s+this->vs*TIME_HORIZON, this->vs, 0};
 
-  // Min jerk left lane change.
-  if (this->lane() > 0) {
-    auto start_d = vector<double>{this->d, this->vd, this->ad};
-    auto end_d = vector<double>{(this->lane()-1)*4.0 + 2.0, 0, 0};
-    const auto& subtrajectories = this->generate_trajectories("change_lane_left", start_s, end_s, start_d, end_d, TIME_HORIZON);
-    trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
-  }
+  auto start_d = vector<double>{this->d, this->vd, this->ad};
+  auto end_d = vector<double>{(this->lane()-1)*4.0 + 2.0, 0, 0};
+  const auto& subtrajectories = this->generate_trajectories("change_lane_left", start_s, end_s, start_d, end_d, TIME_HORIZON);
+  trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
+  
+  return trajectories;
+}
 
-  // Min jerk right lane change.
-  if (this->lane() < this->lanes_available-1) {
-    auto start_d = vector<double>{this->d, this->vd, this->ad};
-    auto end_d = vector<double>{(this->lane()+1)*4.0 + 2.0, 0, 0};
-    const auto& subtrajectories = this->generate_trajectories("change_lane_right", start_s, end_s, start_d, end_d, TIME_HORIZON);
-    trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
-  }
+vector<Trajectory<Vehicle>> Vehicle::change_lane_right_trajectories(
+  map<int, Trajectory<Vehicle>> &predictions, double dt)
+{
+  vector<Trajectory<Vehicle>> trajectories;
+  const double TIME_HORIZON = 5;
+  // Min jerk trajectory to reach target vs.
+  auto start_s = vector<double>{this->s, this->vs, this->as};
+  auto end_s = vector<double>{this->s+this->vs*TIME_HORIZON, this->vs, 0};
+
+  auto start_d = vector<double>{this->d, this->vd, this->ad};
+  auto end_d = vector<double>{(this->lane()+1)*4.0 + 2.0, 0, 0};
+  const auto& subtrajectories = this->generate_trajectories("change_lane_right", start_s, end_s, start_d, end_d, TIME_HORIZON);
+  trajectories.insert(trajectories.end(), subtrajectories.begin(), subtrajectories.end());
   
   return trajectories;
 }
