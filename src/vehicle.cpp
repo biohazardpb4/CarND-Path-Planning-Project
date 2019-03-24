@@ -62,12 +62,8 @@ Trajectory<Vehicle> Vehicle::choose_next_trajectory(map<int, Trajectory<Vehicle>
       }
     } else {
       // slow down
-      std::cout << "slow down or get up to speed" << std::endl;
+      std::cout << "slow down" << std::endl;
       for (auto const &potential_trajectory : this->slow_down_for_ahead_trajectories(predictions, dt)) {
-        potential_trajectories.push_back(potential_trajectory);
-      }
-      // or get up to speed
-      for (auto const &potential_trajectory : target_speed_trajectories(dt)) {
         potential_trajectories.push_back(potential_trajectory);
       }
     }
@@ -344,7 +340,7 @@ vector<Trajectory<Vehicle>> Vehicle::generate_trajectories(
   double time_horizon) {
     vector<Trajectory<Vehicle>> trajectories;
     double SIGMA_S = 5.0, SIGMA_VS = 2.0, SIGMA_AS = 1.0,
-      SIGMA_D = 0.5, SIGMA_VD = 0.25, SIGMA_AD = 0.1, SIGMA_T = 0.75;
+      SIGMA_D = 0.5, SIGMA_VD = 0.25, SIGMA_AD = 0.1, SIGMA_T = 0.5;
 
   std::default_random_engine g;
   std::normal_distribution<double> s(end_s[0], SIGMA_S), vs(end_s[1], SIGMA_VS), as(end_s[2], SIGMA_AS),
