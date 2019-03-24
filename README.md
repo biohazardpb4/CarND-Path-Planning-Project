@@ -28,17 +28,17 @@ This project's path generation implementation is based on ideas seen in the [Opt
 
 ### Behavior Selection Steps
 1. If there is a vehicle close ahead
-  1. If the left lane is available
-    1. Change lane left
-  1. Else if the right lane is available
-    1. change lane right
-  1. Else slow down
+    1. If the left lane is available
+        1. Change lane left
+    1. Else if the right lane is available
+        1. change lane right
+    1. Else slow down
 1. Else
-  1. If to the right of center and left lane is available
-    1. Change lane left
-  1. Else if to the left of center and the right lane is available
-    1. Change lane right
-  1. Else maintain target speed
+    1. If to the right of center and left lane is available
+        1. Change lane left
+    1. Else if to the left of center and the right lane is available
+        1. Change lane right
+    1. Else maintain target speed
 
 ### Trajectory Generation Steps
 1. For each strategy chosen by the behavior layer, generate several min-jerk trajectories probabalistically.
