@@ -14,7 +14,7 @@ using std::string;
 using std::vector;
 
 // Nice to have
-const float LANE_CENTER = 0.2;
+const float LANE_CENTER = 0.45;
 const float EFFICIENCY = 1.4;
 const float SLOW = 0.25;
 const float SHORT = 0.5;
@@ -22,6 +22,7 @@ const float SHORT = 0.5;
 // Need to have
 const float MAX_JERK = 0.9;
 const float MAX_ACCELERATION = 0.85;
+const float TOTAL_ACCELERATION = 0.85;
 const float MAX_VELOCITY = 0.8;
 const float STAY_ON_ROAD = 0.95;
 
@@ -108,6 +109,26 @@ float max_jerk_cost(const Vehicle &ego,
   return 0;
 }
 
+float total_accel_cost(const Vehicle &ego, 
+                        Trajectory<Vehicle> &trajectory, 
+                        const map<int, Trajectory<Vehicle>> &predictions) {
+  // Cost becomes higher for trajectories with high total acceleration
+  // Max is half allowed per-step accel over all steps.
+  double max_possible = ego.max_acceleration_fast * (2.0/0.02);
+  double penalize_at = max_possible/2.0;
+  double total = 0;
+  int horizon_index = int(2.0 / 0.02);
+  for (int i = 0; i < trajectory.path.size() && i < horizon_index; i++) {
+    const auto& step = trajectory.path[i];
+    total += distance(0, 0, step.ad, step.as);
+  }
+  total = std::min(max_possible, total);
+  if (total > penalize_at && ego.vs > mph2mps(20)) {
+    return total / max_possible;
+  }
+  return 0;
+}
+
 float max_accel_cost(const Vehicle &ego, 
                         Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
@@ -177,13 +198,13 @@ float calculate_cost(const Vehicle &ego,
   float cost = 0.0;
 
   // Add additional cost functions here.
-  vector<string> label_list{"inefficiency", "slow", "short", "max_jerk", "max_accel", "max_velocity",
+  vector<string> label_list{"inefficiency", "slow", "short", "max_jerk", "max_accel", "total_accel", "max_velocity",
     "collision", "stay_on_road", "off_lane_center"};
   vector<std::function<float(const Vehicle &, Trajectory<Vehicle> &, 
     const map<int, Trajectory<Vehicle>> &)>> cf_list =
-    {inefficiency_cost, slow_cost, short_cost, max_jerk_cost, max_accel_cost, max_velocity_cost,
+    {inefficiency_cost, slow_cost, short_cost, max_jerk_cost, max_accel_cost, total_accel_cost, max_velocity_cost,
     collision_cost, stay_on_road_cost, off_lane_center_cost};
-  vector<float> weight_list = {EFFICIENCY, SLOW, SHORT, MAX_JERK, MAX_ACCELERATION, MAX_VELOCITY,
+  vector<float> weight_list = {EFFICIENCY, SLOW, SHORT, MAX_JERK, MAX_ACCELERATION, TOTAL_ACCELERATION, MAX_VELOCITY,
     COLLISION, STAY_ON_ROAD, LANE_CENTER};
     
   for (int i = 0; i < cf_list.size(); ++i) {

@@ -33,6 +33,10 @@ float max_jerk_cost(const Vehicle &ego,
 		Trajectory<Vehicle> &trajectory,
 		const map<int, Trajectory<Vehicle>> &predictions);
 
+float total_accel_cost(const Vehicle &ego,
+		     Trajectory<Vehicle> &trajectory,
+		     const map<int, Trajectory<Vehicle>> &predictions);
+
 float max_accel_cost(const Vehicle &ego,
 		     Trajectory<Vehicle> &trajectory,
 		     const map<int, Trajectory<Vehicle>> &predictions);

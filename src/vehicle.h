@@ -55,12 +55,12 @@ public:
 
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
-  double target_speed = mph2mps(45);
-  double max_acceleration_slow = 3;
-  double max_acceleration_fast = 0.25;
+  double target_speed = mph2mps(44);
+  double max_acceleration_slow = 2;
+  double max_acceleration_fast = 0.2;
   double max_jerk = 2;
   int lanes_available = 3;
-  int preferred_buffer = 12;
+  int preferred_buffer = 20;
 
   // Kinematic coefficients for s and d coord.
   double s, vs, as;
