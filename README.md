@@ -26,8 +26,22 @@ Here is the data provided from the Simulator to the C++ Program
 ## Path Planning Details
 This project's path generation implementation is based on ideas seen in the [Optimal Trajectory Generation for Dynamic Street Scenarios in a Frenet Frame](https://www.researchgate.net/publication/224156269_Optimal_Trajectory_Generation_for_Dynamic_Street_Scenarios_in_a_Frenet_Frame) paper.
 
-### Path Planner Steps
-1. For each strategy: straignt, change lane left, change lane right, and slow down for car ahead, generate several min-jerk trajectories probabalistically.
+### Behavior Selection Steps
+1. If there is a vehicle close ahead
+  1. If the left lane is available
+    1. Change lane left
+  1. Else if the right lane is available
+    1. change lane right
+  1. Else slow down
+1. Else
+  1. If to the right of center and left lane is available
+    1. Change lane left
+  1. Else if to the left of center and the right lane is available
+    1. Change lane right
+  1. Else maintain target speed
+
+### Trajectory Generation Steps
+1. For each strategy chosen by the behavior layer, generate several min-jerk trajectories probabalistically.
 1. For each generated trajectory, judge its cost via several cost functions.
 1. For the trajectory with the lowest cost, convert that from Frenet to XY coordinates and emit a path.
 
@@ -35,14 +49,15 @@ This project's path generation implementation is based on ideas seen in the [Opt
 The following cost functions and weights are used:
 
 // Nice to have
-const float LANE_CENTER = 0.1;
+const float LANE_CENTER = 0.45;
 const float EFFICIENCY = 1.4;
 const float SLOW = 0.25;
-const float SHORT = 0.3;
+const float SHORT = 0.5;
 
 // Need to have
 const float MAX_JERK = 0.9;
 const float MAX_ACCELERATION = 0.85;
+const float TOTAL_ACCELERATION = 0.85;
 const float MAX_VELOCITY = 0.8;
 const float STAY_ON_ROAD = 0.95;
 
