@@ -29,8 +29,6 @@ int main() {
   vector<double> raw_map_waypoints_dy;
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
-  // The max s value before wrapping around the track back to 0
-  double max_s = 6945.554;
   std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
 
   string line;
@@ -55,6 +53,7 @@ int main() {
     raw_map_waypoints_dx.push_back(d_x);
     raw_map_waypoints_dy.push_back(d_y);
   }
+
   // create splines in the XY space, since I don't trust the transformation from SD to be very smooth.
   tk::spline waypoints_x_spline, waypoints_y_spline, waypoints_s_spline, waypoints_dx_spline, waypoints_dy_spline;
   waypoints_x_spline.set_points(raw_map_waypoints_iteration, raw_map_waypoints_x);
@@ -82,6 +81,16 @@ int main() {
       iteration += d_i;
     }
   }
+  // Fill in path between last and first waypoints.
+  iteration = raw_map_waypoints_x.size();
+  for (int j = 0; j < WAYPOINT_INTERPOLATION_FACTOR-1; j++) {
+    map_waypoints_x.push_back(waypoints_x_spline(iteration));
+    map_waypoints_y.push_back(waypoints_y_spline(iteration));
+    map_waypoints_s.push_back(waypoints_s_spline(iteration));
+    map_waypoints_dx.push_back(waypoints_dx_spline(iteration));
+    map_waypoints_dy.push_back(waypoints_dy_spline(iteration));
+    iteration += d_i;
+  }
 
   bool sensors_initiliazed = false;
   double d = 6.0;
@@ -89,7 +98,7 @@ int main() {
   vector<Vehicle> ego_history;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-      &map_waypoints_dx, &map_waypoints_dy, &ego, &sensors_initiliazed, &max_s, &ego_history]
+      &map_waypoints_dx, &map_waypoints_dy, &ego, &sensors_initiliazed, &ego_history]
       (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
        uWS::OpCode opCode) {
       // "42" at the start of the message means there's a websocket message event.

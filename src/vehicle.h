@@ -26,10 +26,13 @@ public:
 
   Vehicle at(double dt) const;
 
+  bool get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions, Vehicle &rVehicle);
+  bool lane_available(map<int, Trajectory<Vehicle>> &predictions, int lane);
+
   // Trajectories
   vector<Trajectory<Vehicle>> target_speed_trajectories(double dt);
+  vector<Trajectory<Vehicle>> kinematic_trajectories(double dt);
   vector<Trajectory<Vehicle>> slow_down_for_ahead_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
-  //vector<Trajectory<Vehicle>> change_lane_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
   vector<Trajectory<Vehicle>> change_lane_left_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
   vector<Trajectory<Vehicle>> change_lane_right_trajectories(map<int, Trajectory<Vehicle>> &predictions, double dt);
 
@@ -39,21 +42,22 @@ public:
     double time_horizon);
 
   void trim_trajectory(Trajectory<Vehicle>& trajectory);
+  void wrap_s(Trajectory<Vehicle>& trajectory);
 
   vector<Trajectory<Vehicle>> generate_trajectories(
     string generated_by,
     vector<double> start_s, vector<double> end_s, vector<double> start_d, vector<double> end_d,
     double time_horizon);
 
-  bool get_vehicle_ahead(map<int, Trajectory<Vehicle>> &predictions, int lane, Vehicle &rVehicle);
-
   Trajectory<Vehicle> generate_predictions(double horizon, double dt);
 
   int lane() const;
 
-  double target_speed = mph2mps(46);
-  double max_acceleration = 7;
-  double max_jerk = 5;
+  // The max s value before wrapping around the track back to 0
+  double max_s = 6945.554;
+  double target_speed = mph2mps(45);
+  double max_acceleration = 2.5;
+  double max_jerk = 2.5;
   int lanes_available = 3;
   int preferred_buffer = 12;
 

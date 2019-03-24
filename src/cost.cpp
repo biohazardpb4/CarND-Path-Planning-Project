@@ -84,7 +84,11 @@ float short_cost(const Vehicle &ego,
     d = trajectory.path[horizon_index].d;
   }
   float s_distance = distance(s, d, ego.s, ego.d);
-  return exp(-s_distance/(ego.target_speed*2.0));
+  // Give an extremely high cost to paths that go very short distances.
+  if (s_distance <= 0.1) {
+    return 10;
+  }
+  return exp(10.0*(-s_distance/(ego.target_speed*2.0)));
 }
 
 float max_jerk_cost(const Vehicle &ego, 

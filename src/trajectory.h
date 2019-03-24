@@ -22,7 +22,7 @@ public:
   friend ostream & operator << (ostream &out, const Trajectory &t) {
       const auto& start = t.path[0];
       const auto& end = t.path[t.path.size()-1];
-      out << "trajectory: " << t.generated_by << " debug<" << t.debug << "> s<" << start.s << "," << start.vs << "," << start.as << "> d<"
+      out << "trajectory: " << t.generated_by << " length<" << t.path.size() << "> debug<" << t.debug << "> s<" << start.s << "," << start.vs << "," << start.as << "> d<"
         << start.d << "," << start.vd << "," << start.ad << "> to s<" << end.s << "," << end.vs << "," << end.as << "> d<"
         << end.d << "," << end.vd << "," << end.ad << "> -- total: " << t.total_cost;
       for (const auto& ic : t.individual_costs) {
