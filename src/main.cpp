@@ -82,15 +82,15 @@ int main() {
     }
   }
   // Fill in path between last and first waypoints.
-  iteration = raw_map_waypoints_x.size();
-  for (int j = 0; j < WAYPOINT_INTERPOLATION_FACTOR-1; j++) {
-    map_waypoints_x.push_back(waypoints_x_spline(iteration));
-    map_waypoints_y.push_back(waypoints_y_spline(iteration));
-    map_waypoints_s.push_back(waypoints_s_spline(iteration));
-    map_waypoints_dx.push_back(waypoints_dx_spline(iteration));
-    map_waypoints_dy.push_back(waypoints_dy_spline(iteration));
-    iteration += d_i;
-  }
+  // iteration = raw_map_waypoints_x.size();
+  // for (int j = 0; j < WAYPOINT_INTERPOLATION_FACTOR-1; j++) {
+  //   map_waypoints_x.push_back(waypoints_x_spline(iteration));
+  //   map_waypoints_y.push_back(waypoints_y_spline(iteration));
+  //   map_waypoints_s.push_back(waypoints_s_spline(iteration));
+  //   map_waypoints_dx.push_back(waypoints_dx_spline(iteration));
+  //   map_waypoints_dy.push_back(waypoints_dy_spline(iteration));
+  //   iteration += d_i;
+  // }
 
   bool sensors_initiliazed = false;
   double d = 6.0;
