@@ -56,8 +56,9 @@ public:
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
   double target_speed = mph2mps(45);
-  double max_acceleration = 2.25;
-  double max_jerk = 2.5;
+  double max_acceleration_slow = 3;
+  double max_acceleration_fast = 0.25;
+  double max_jerk = 2;
   int lanes_available = 3;
   int preferred_buffer = 12;
 

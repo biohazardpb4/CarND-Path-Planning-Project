@@ -85,8 +85,8 @@ float short_cost(const Vehicle &ego,
   }
   float s_distance = distance(s, d, ego.s, ego.d);
   // Give an extremely high cost to paths that go very short distances.
-  if (s_distance <= 0.1) {
-    return 10;
+  if (s - ego.s <= 0.1) {
+    return 100;
   }
   return exp(10.0*(-s_distance/(ego.target_speed*2.0)));
 }
@@ -112,8 +112,9 @@ float max_accel_cost(const Vehicle &ego,
                         Trajectory<Vehicle> &trajectory, 
                         const map<int, Trajectory<Vehicle>> &predictions) {
   // Cost becomes higher for trajectories with > 10 m/s^2 acceleration
+  double max_allowed = ego.vs < mph2mps(20) ? ego.max_acceleration_slow : ego.max_acceleration_fast;
   for (const auto& step : trajectory.path) {
-    if (distance(0, 0, step.ad, step.as) > ego.max_acceleration) {
+    if (distance(0, 0, step.ad, step.as) > max_allowed) {
       return 1;
     }
   }
@@ -138,7 +139,7 @@ float collision_cost(const Vehicle &ego,
   // Cost becomes higher when collisions occur
   float nearest = nearest_vehicle(trajectory, predictions);
   // std::cout << "nearest vehicle: " << nearest << std::endl;
-  return nearest < 3 ? 1 : 0;
+  return nearest < 3.05 ? 1 : 0;
 }
 
 float lane_speed(const Vehicle &ego, const map<int, Trajectory<Vehicle>> &predictions, const int lane) {
@@ -204,8 +205,8 @@ float nearest_vehicle(Trajectory<Vehicle> &trajectory, const map<int, Trajectory
   for (const auto& ego : trajectory.path) {
     for (auto& kv : predictions) {
       auto other = kv.second.path[0];
-      // Run scenarios with accelerations ranging from -4.0 to +4.0 m/s^2
-      for (double as = -4; as < 0.5; as += 4.0) {
+      // Run scenarios with accelerations ranging from -3.0 to 0.0 m/s^2
+      for (double as = -3; as < 0.5; as += 3.0) {
         other.as = as;
         const Vehicle& predicted = other.at(t); // Assume constant acceleration of other vehicles.
         float d = distance(ego.s, ego.d, predicted.s, predicted.d);
